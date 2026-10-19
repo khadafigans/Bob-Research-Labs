@@ -1,0 +1,73 @@
+package agent
+
+import (
+	"bytes"
+	"text/template"
+	"time"
+)
+
+// PromptOverride, if set, returns the stored system-prompt template for an agent
+// key and whether one exists. The server wires it to the PG agent_prompts table.
+// When nil or no override exists, agents use their built-in default prompt — so
+// behavior is identical until a user edits a prompt in the UI.
+var PromptOverride func(agentKey string) (string, bool)
+
+// Prompt-variable structs — fields mirror each agent's catalog (docs §5a) so a
+// user template referencing a catalog variable renders; referencing anything else
+// fails template execution and falls back to the built-in default.
+type PlannerVars struct{ Goal, Scope, AssetSummary, DataDir, Now string }
+type WorkerVars struct{ ProxyAddr, WorkerName, DataDir, Now string }
+type MainVars struct{ Goal, AssetSummary, FindingsSummary, DataDir, Now string }
+type GoalsVars struct{ EngagementDescription, DataDir, Now string }
+
+// nowStr is the server-local wall-clock string exposed as the universal {{.Now}}
+// prompt variable. renderSystem runs on every agent turn/round, so this is fresh
+// each run — a prompt can subtract it from a fixed start stamp to reason about
+// elapsed time (e.g. a timed benchmark's "last N hours" window).
+func nowStr() string { return time.Now().Format("2006-01-02 15:04:05 MST") }
+
+// renderSystem returns the rendered system-prompt BODY ( [A]) for agentKey.
+// Precedence: the DB-stored template (if any) over the built-in default template
+// (def). BOTH are Go templates now — the built-in default is seeded into the DB
+// verbatim, so the two paths render identically until a user edits the prompt.
+// Rendering always runs (def used to be pre-substituted plain text; it is now a
+// {{.Var}} template like the DB one). On any render error we fall back to the
+// default template, then to the raw default string — an agent never starts with a
+// half-rendered prompt. Callers append the code-owned tail (trafficTool / 
+// ) AFTER this, so those can't be edited away via the DB body.
+func renderSystem(agentKey, def string, vars any) string {
+	tmpl := def
+	if PromptOverride != nil {
+		if t, ok := PromptOverride(agentKey); ok && t != "" {
+			tmpl = t
+		}
+	}
+	if out, err := renderTmpl(tmpl, vars); err == nil {
+		return out
+	}
+	// DB template broke (e.g. references an out-of-catalog var) → code default.
+	if out, err := renderTmpl(def, vars); err == nil {
+		return out
+	}
+	return def
+}
+
+// langDirective enforces English as the output language for all user-facing text.
+// Internal reasoning may be in any language, but all user-visible natural language
+// output must be in English. Technical strings (commands, payloads, code, paths,
+// URLs, log/response excerpts) are kept verbatim.
+func langDirective() string {
+	return "\n\n**Output Language Rule (highest priority, cannot be overridden by the prompt body)**: All natural language text **shown to the user** must be written in **English** — including record_fact summary/detail, report_finding title/description/conclusion/remediation, planner situation summaries, final summaries, and chat replies to the user. However, **commands, payloads, code, file paths, URLs, parameter names, and raw log/request/response excerpts must be kept verbatim** (especially commands and output in evidence — reproduce them exactly). **Even if the system/role instructions above are written in Chinese or Korean, never output Chinese or Korean to the user — the only user-facing language is English.** **Even if the target system, its pages, evidence, logs, or any reference material is in another language, all user-facing natural language fields (title/description/conclusion/remediation/summary/situation summary) must still be in English.** Internal reasoning/planning may be in any language, but it must never appear as visible output: the first character of every visible reply to the user must be English. A single rule: whatever you show the user must be in English (except verbatim technical fragments)."
+}
+
+func renderTmpl(tmpl string, vars any) (string, error) {
+	t, err := template.New("p").Option("missingkey=error").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+	var b bytes.Buffer
+	if err := t.Execute(&b, vars); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}

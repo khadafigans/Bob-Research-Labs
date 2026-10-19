@@ -1,0 +1,24 @@
+# ARTEX  TSec Benchmark  ——  build + run。
+#  docker-compose.yml(:artex+postgres)。
+#   cp bench/.env.example bench/.env   #  LLM_API_KEY / BENCHMARK_TOKEN 
+#   docker compose -f docker-compose.bench.yml up --build      # ()
+#   docker compose -f docker-compose.bench.yml up --build -d   # 
+#   docker compose -f docker-compose.bench.yml logs -f
+#   docker compose -f docker-compose.bench.yml down            # ( -v )
+# ：http://localhost:8787（ ADMIN_PASSWORD ）
+
+services:
+  artex-bench:
+    build:
+      context: .
+      dockerfile: Dockerfile.bench
+    image: artex-bench:latest
+    container_name: artex-bench
+    env_file:
+      - bench/.env
+    # host  ports ，：8787(UI/API)、8788()、
+    network_mode: host
+    restart: "no"
+
+volumes:
+  artex_bench_data:

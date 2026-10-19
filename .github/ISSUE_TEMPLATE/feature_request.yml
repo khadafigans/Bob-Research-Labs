@@ -1,0 +1,52 @@
+name: 💡  
+description:     .
+title: "[] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+           .       .
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 
+      options:
+        - label:      .
+          required: true
+        - label:          .
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label:  · 
+      description:     .      .
+      placeholder: ":       PDF   ."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label:  
+      description:     .
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label:  
+      description:      .
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label:  
+      options:
+        -  (agent)
+        -  UI /  (web / server)
+        - LLM  
+        - ·
+        - 
+    validations:
+      required: false

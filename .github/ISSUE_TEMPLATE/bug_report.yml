@@ -1,0 +1,76 @@
+name: 🐛  
+description:       .
+title: "[] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+          .       .
+        **     [SECURITY.md](https://github.com/jiwoochris/artex-ko/security/policy)    .**
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: 
+      options:
+        - label:      .
+          required: true
+        - label:   ·       .
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label:   
+      description:       .
+      placeholder: ":       ."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label:  
+      description:          .
+      placeholder: |
+        1. '...'  
+        2. '...' 
+        3. '...'   
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: ·
+      description:     .  (API ·· )  .
+      render: shell
+    validations:
+      required: false
+  - type: dropdown
+    id: component
+    attributes:
+      label: 
+      description:     .
+      options:
+        -  (agent)
+        -  UI /  (web / server)
+        - · (Docker·)
+        - LLM  
+        - ·
+        -  
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 
+      description:       .
+      placeholder: ": v2.2.0  b45ba04"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label:  
+      description: OS, Docker  , LLM    .
+      placeholder: ": macOS 15 / Docker Compose / claude-opus-4-8"
+    validations:
+      required: false

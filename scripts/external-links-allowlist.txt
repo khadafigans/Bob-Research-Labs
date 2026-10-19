@@ -1,0 +1,9 @@
+# check-external-links.py   " DOWN" allowlist.
+#
+#   URL    DOWN   ALLOWED   --strict 
+#
+
+# (Autumn-27/ARTEX) CHANGELOG.zh.md:539    GitHub .
+#  · 404.    (BRIEF  #1·MAINTAINING 2)
+# CHANGELOG.zh.md       . 2026-10-07 .
+https://github.com/begininvoke

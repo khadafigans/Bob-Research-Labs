@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒    · Report a security vulnerability
+    url: https://github.com/jiwoochris/artex-ko/security/policy
+    about:      .  (SECURITY.md · English SECURITY.en.md)     . / Do not file security vulnerabilities as public issues; follow the private process in the security policy.
+  - name: 📜     · Authorized use and legal notice
+    url: https://github.com/jiwoochris/artex-ko#️--------
+    about: ARTEX  ·        .       . / ARTEX may be used only against targets you own or are authorized to test, or in a local isolated environment. See README.en.md.

@@ -1,0 +1,27 @@
+# pre-commit   ( : https://pre-commit.com)
+#
+#
+# 1) detections —  (detections/)       ,
+#          (detections/tests/run-all.sh) .
+#    CI(.github/workflows/detections.yml)  ·   , 
+#     (scripts/check-doc-links.py). CI(.github/workflows/docs.yml) 
+#
+# :        pip install pre-commit && pre-commit install
+#  :   pre-commit run detections --all-files
+#              pre-commit run docs --all-files
+#
+repos:
+  - repo: local
+    hooks:
+      - id: detections
+        name:    8 (Sigma·Suricata·ATT&CK··MISP)
+        entry: detections/tests/run-all.sh
+        language: script
+        pass_filenames: false
+        files: '^(detections/|enrich/enrich\.go|selfupdate/(github|stage)\.go|guard/guard\.go|db/db\.go|db/schema\.sql|cmd/artex/main\.go|traffic/traffic\.go)'
+      - id: docs
+        name:   ··(#)  
+        entry: python3 -I scripts/check-doc-links.py
+        language: system
+        pass_filenames: false
+        always_run: true

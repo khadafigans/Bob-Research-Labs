@@ -1,0 +1,10 @@
+{
+  "database": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "reaper_user",
+    "password": "CHANGE_ME",
+    "dbname": "reaper",
+    "sslmode": "disable"
+  }
+}

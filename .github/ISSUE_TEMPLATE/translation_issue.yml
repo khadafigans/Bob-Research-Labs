@@ -1,0 +1,56 @@
+name: 🌐 · 
+description:    ,    .
+title: "[] "
+labels: ["i18n"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+              .
+            **    ,     ···    ** .
+          [CONTRIBUTING.md](https://github.com/jiwoochris/artex-ko/blob/main/CONTRIBUTING.md#-) .
+  - type: dropdown
+    id: kind
+    attributes:
+      label:   
+      options:
+        -   
+        -   ( )
+        -   ( · )
+        -      (·· )
+        -   
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label:  
+      options:
+        -  UI
+        -   ( ··· )
+        -  (README )
+        - 
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label:  
+      description:      .  ·    .
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label:  
+      description:     . ()
+    validations:
+      required: false
+  - type: input
+    id: key
+    attributes:
+      label:   /  
+      description:  .   web/messages/ko.json      .
+      placeholder: ": web/messages/ko.json → dashboard.title"
+    validations:
+      required: false

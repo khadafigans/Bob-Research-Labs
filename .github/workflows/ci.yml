@@ -1,0 +1,87 @@
+name: checks
+# Bob Research Labs CI — modeled on cskwork/scopeweaver `.github/workflows/ci.yml`
+# (frontend + backend gates). Dropped upstream ARTEX-ko web/docs/detections
+# workflows (CJK UI gate, Korean doc-link scanner, Docker-heavy detection harness).
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Static export (English UI)
+        env:
+          NEXT_PUBLIC_LOCALE: en
+        run: npm run build:static
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check shell syntax
+        run: |
+          set -euo pipefail
+          for script in *.sh; do
+            [[ -f "$script" ]] || continue
+            bash -n "$script"
+          done
+      - name: go build
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+      - name: go test (no DB — integration tests skip)
+        run: go test ./... -count=1
+
+  backend-db:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [agent, config, db, evidence, llmrec, server]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bob
+          POSTGRES_PASSWORD: bob_ci_only
+          POSTGRES_DB: bob
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U bob -d bob"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test (DB · ${{ matrix.pkg }})
+        env:
+          ARTEX_PG_DSN: postgres://bob:bob_ci_only@localhost:5432/bob?sslmode=disable
+        run: go test ./${{ matrix.pkg }}/ -count=1
