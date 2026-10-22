@@ -22,14 +22,16 @@ const (
 	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
-//  endpoint HTTP     .  UI  ·
-//    (web messages auth.login.errorCredential)  .
+// 인증 endpoint가 HTTP 응답으로 돌려주는 사용자 노출 문구다. 한국어 UI 에서 로그인·
+// 비밀번호 설정이 실패하면 이 문구가 그대로 토스트로 뜨므로 한국어로 둔다. 자격 증명
+// 오류 문구는 로그인 화면(web messages auth.login.errorCredential)과 표기를 맞췄다.
+// token 은 기술 용어라 원문 그대로 둔다(로그·주석은 BRIEF 방침상 최하위라 손대지 않음).
 const (
 	authErrUnauthorized         = "authentication required"
 	authErrTokenInvalid         = "token is invalid or expired"
 	authErrPasswordAlreadySet   = "password is already set"
 	authErrPasswordEmpty        = "please enter a password"
-	authErrNewPasswordEmpty     = " please enter a password"
+	authErrNewPasswordEmpty     = "please enter a new password"
 	authErrPasswordHash         = "failed to hash password"
 	authErrSaveFailedPrefix     = "save failed: "
 	authErrTokenGen             = "failed to generate token"
@@ -54,7 +56,7 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 			if data, rerr := os.ReadFile(legacy); rerr == nil {
 				if werr := os.WriteFile(path, data, 0o600); werr == nil {
 					_ = os.Remove(legacy)
-					log.Printf("[auth] JWT  %s  %s  (    )", legacy, path)
+					log.Printf("[auth] JWT 키를 %s 에서 %s 로 이전(탐색 가능한 워크스페이스 밖으로 이동)", legacy, path)
 				}
 			}
 		}
@@ -73,7 +75,7 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 	if err := os.WriteFile(path, buf, 0600); err != nil {
 		return nil, fmt.Errorf("write jwt key: %w", err)
 	}
-	log.Printf("[auth]  JWT  %s  ", path)
+	log.Printf("[auth] 새 JWT 키를 %s 에 기록", path)
 	return buf, nil
 }
 
@@ -137,8 +139,12 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 	if pg == nil {
 		return
 	}
-	hash, _, _ := pg.GetSetting(authPassKey)
-	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
+	hash, ok, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrSaveFailedPrefix+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"initialized": ok && hash != ""})
 }
 
 // POST /api/auth/init — sets the password for the first time; rejected if already set.
@@ -147,8 +153,16 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 	if pg == nil {
 		return
 	}
-	existing, _, _ := pg.GetSetting(authPassKey)
-	if existing != "" {
+	// Fail closed: a DB error must NOT be treated as "unset" — scanners that
+	// exhaust Postgres connections previously raced GetSetting failures into a
+	// successful re-init (nginx: 192.3.193.141 POST /api/auth/init → 200 at
+	// 2026-10-22 11:53:53 UTC while "too many clients already" flooded the DB).
+	existing, ok, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, authErrSaveFailedPrefix+err.Error())
+		return
+	}
+	if ok && existing != "" {
 		writeErr(w, 403, authErrPasswordAlreadySet)
 		return
 	}
