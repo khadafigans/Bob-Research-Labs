@@ -706,3 +706,11 @@ contributors are not liable for any direct or indirect loss, data loss, system d
 dispute arising from use of this tool, whether or not the use was appropriate. **By downloading,
 installing, or using this project, you confirm that you have read, understood, and agreed to all of
 the terms above.**
+
+---
+**Buy me a Coffee:**
+```
+₿ BTC: 17sbbeTzDMP4aMELVbLW78Rcsj4CDRBiZh
+```
+
+© 2026 khadafigans
