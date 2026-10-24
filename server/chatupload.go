@@ -15,11 +15,11 @@ import (
 // maxChatUpload caps a single chat-attachment upload request (memory + spill).
 const maxChatUpload = 128 << 20 // 128 MiB
 
-// chatUpload     (). writeErr   UI  . :
-// → , scope/id/file     . scope  intercept.go 
-// " …   " ,    goals_api.go   , " id"
-//  workspace.go errWsIllegalPath(" ")  . ...  
-// task_archives.go:229    + err.Error()   .
+// chatUpload 의 사용자 노출 에러 응답(한국어). writeErr 로 그대로 UI 에 노출된다. 用語:
+// 附件→첨부 파일, scope/id/file 은 요청 필드명이라 원문 보존. scope 검증은 intercept.go 의
+// "값은 … 중 하나여야 합니다" 패턴, 作业 삭제 문구는 goals_api.go 와 같은 문형, "잘못된 id"
+// 는 workspace.go errWsIllegalPath("잘못된 경로입니다")와 같은 꼴이다. ...失败 세 종류는
+// task_archives.go:229 선례처럼 접두 상수 + err.Error() 로 이어 붙인다.
 const (
 	errChatUploadScopeInvalid = "scope must be one of: task, session, staging"
 	errChatUploadBadID        = "invalid id"
@@ -41,8 +41,8 @@ type chatAttachment struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Size int64  `json:"size"`
-	// Abs (m.dir )。(scope=staging)
-	// ;task/session  composeAgentMessage ,。
+	// Abs 是落盘的绝对路径(m.dir 已是绝对)。建任务前暂存(scope=staging)时前端要用它把
+	// 提示词写进描述;task/session 走 composeAgentMessage 在后端拼路径,不依赖此字段。
 	Abs string `json:"abs,omitempty"`
 }
 
@@ -56,7 +56,8 @@ type chatAttachment struct {
 //
 //	scope=task    → <workDir>/tasks/<id>/uploads/
 //	scope=session → <workDir>/sessions/<id>/uploads/
-//	scope=staging → <workDir>/drafts/<id>/uploads/   (: ID,
+//	scope=staging → <workDir>/drafts/<id>/uploads/   (建任务前暂存:任务尚无 ID,
+//	                文件先落这里,前端按返回的 abs 绝对路径写进任务描述)
 func (s *Server) chatUpload(w http.ResponseWriter, r *http.Request) {
 	var sub string
 	taskScoped := false
@@ -147,8 +148,11 @@ func composeAgentMessage(msg string, atts []chatAttachment, baseDir string) stri
 	}
 	var b strings.Builder
 	b.WriteString(msg)
-	//  . composeAgentMessage   runConversation/ma.Chat  
-	// ()(BRIEF  #1).  userActivityWithAttachments   JSON  
+	// [F10 경계 판정 · 두뇌 입력 보존] 이 첨부 매니페스트 헤더(`【用户上传的附件】…Read/Bash…`)는
+	// 번역하지 않는다. composeAgentMessage 의 반환값은 runConversation/ma.Chat 으로 에이전트에
+	// 보내지는 메시지라, 이 문구는 "업로드된 파일을 Read/Bash 로 열라"고 모델에 지시하는 에이전트
+	// 입력(두뇌)이다(BRIEF 경계 #1). 전사는 userActivityWithAttachments 가 첨부 JSON 으로 따로
+	// 렌더하므로 이 헤더 문자열 자체는 표시 경로에 노출되지 않는다(F16 동형 두뇌 전용).
 	b.WriteString("\n\n[User uploaded attachments] (absolute paths, use Read/Bash to view when needed): ")
 	for _, a := range atts {
 		fmt.Fprintf(&b, "\n- %s（%s）", filepath.Join(baseDir, a.Path), humanBytes(a.Size))

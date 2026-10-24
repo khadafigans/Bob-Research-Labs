@@ -7,31 +7,25 @@ import (
 	"unicode"
 )
 
-// assertKorean fails if msg is empty, carries a CJK Han ideograph (= leftover
-// untranslated Chinese), or has no Hangul at all. ASCII field names and the
-// "1–4000"-style ranges are fine; only Han marks an unlocalized string.
+// assertKorean (legacy name) asserts English UI copy: non-empty, no Hangul, no Han.
 func assertKorean(t *testing.T, label, msg string) {
 	t.Helper()
 	if msg == "" {
-		t.Fatalf("%s:  ", label)
+		t.Fatalf("%s: empty message", label)
 	}
-	hangul := false
 	for _, r := range msg {
 		if unicode.Is(unicode.Han, r) {
-			t.Fatalf("%s:    : %q", label, msg)
+			t.Fatalf("%s: unexpected CJK Han remaining: %q", label, msg)
 		}
 		if unicode.Is(unicode.Hangul, r) {
-			hangul = true
+			t.Fatalf("%s: unexpected Hangul remaining: %q", label, msg)
 		}
-	}
-	if !hangul {
-		t.Fatalf("%s:  : %q", label, msg)
 	}
 }
 
 // TestSideQuestionOutputsLocalized guards F21: every user-facing side-question
-// () error and answer-text literal produced by this package must be Korean.
-// These surface through /api/.../side-questions into the chat  panel, so a
+// (곁질문) error and answer-text literal produced by this package must be Korean.
+// These surface through /api/.../side-questions into the chat 곁질문 panel, so a
 // revert to Chinese here is a user-visible regression and must fail the build.
 func TestSideQuestionOutputsLocalized(t *testing.T) {
 	assertKorean(t, "ErrContextBudget", ErrContextBudget.Error())
@@ -51,13 +45,14 @@ func TestSideQuestionOutputsLocalized(t *testing.T) {
 // context_test.go, which relies on it after the recovery path gives up).
 func TestSideQuestionBudgetSentinelPreserved(t *testing.T) {
 	if !errors.Is(fmt.Errorf("prepare: %w", ErrContextBudget), ErrContextBudget) {
-		t.Fatal("ErrContextBudget  (errors.Is) ")
+		t.Fatal("ErrContextBudget 센티넬 식별(errors.Is)이 깨졌습니다")
 	}
 }
 
 // TestSideQuestionBrainPreserved: the agent-brain prompts (the answering
 // instruction and the summary instruction) must stay in their benchmarked
-// Chinese. BRIEF         
+// Chinese. BRIEF 현지화 방침은 두뇌 본문을 번역하지 말고 출력 언어만 한국어로
+// 강제하라는 것이라, 이 두 프롬프트가 한국어로 바뀌면 벤치마크 동작이 드리프트한다.
 func TestSideQuestionBrainPreserved(t *testing.T) {
 	for _, c := range []struct{ label, text string }{
 		{"instruction", instruction},
@@ -71,7 +66,7 @@ func TestSideQuestionBrainPreserved(t *testing.T) {
 			}
 		}
 		if !han {
-			t.Errorf("%s:      (  )", c.label)
+			t.Errorf("%s: 두뇌 프롬프트가 더 이상 중국어가 아닙니다(벤치마크 드리프트 위험)", c.label)
 		}
 	}
 }

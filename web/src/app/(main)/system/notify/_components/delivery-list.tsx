@@ -15,10 +15,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { api } from "@/lib/api";
 import type { NotificationChannel, NotificationDelivery } from "@/lib/types";
 
-// DeliveryList ：，。
+// DeliveryList 是投递记录表：可按渠道与状态筛选，失败项可手动重发。
 export function DeliveryList({ channels }: { channels: NotificationChannel[] }) {
   const t = useTranslations("notifyPage");
-  //  ·    `status`  (StatusBadge   ).
+  // 전송 상태·심각도 라벨은 전역 공유 `status` 네임스페이스에서 온다(StatusBadge 와 동일 출처).
+  // lib/status.ts 의 중국어는 상류 대조용 죽은 폴백이라 직접 쓰지 않는다(턴 129 함정 참조).
   const ts = useTranslations("status");
   const tp = useTranslations("pagination");
   const [rows, setRows] = React.useState<NotificationDelivery[]>([]);
@@ -39,7 +40,7 @@ export function DeliveryList({ channels }: { channels: NotificationChannel[] }) 
       })
       .catch((e) => toast.error(t("delivery.loadFailed", { msg: (e as Error).message })))
       .finally(() => setLoading(false));
-    // t    deps    , exhaustive-deps   .
+    // t 는 안정 참조라 deps 에 넣지 않아도 되지만, exhaustive-deps 를 만족시키려 포함.
   }, [channelID, state, page, t]);
   React.useEffect(() => {
     load();
@@ -148,7 +149,7 @@ export function DeliveryList({ channels }: { channels: NotificationChannel[] }) 
                   <TableCell className="text-muted-foreground text-sm">{d.attempts}</TableCell>
                   <TableCell className="text-muted-foreground max-w-md text-xs break-all">{d.last_error}</TableCell>
                   <TableCell>
-                    {/* /：。 */}
+                    {/* 只有失败/跳过的才给重发入口：已送达的重发会造成重复推送。 */}
                     {(d.state === "failed" || d.state === "skipped") && (
                       <Button size="sm" variant="outline" onClick={() => retry(d.id)}>
                         <RotateCcwIcon /> {t("delivery.resend")}

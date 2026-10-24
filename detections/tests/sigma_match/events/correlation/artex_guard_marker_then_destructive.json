@@ -7,7 +7,7 @@
         {
           "ts": 0,
           "host": "web01",
-          "message": "guard 【ARTEX ·】: rm -rf /"
+          "message": "guard 【ARTEX 平台管控·非目标防御】此操作被禁止: rm -rf /"
         },
         {
           "ts": 600,
@@ -25,12 +25,12 @@
         {
           "ts": 0,
           "host": "web01",
-          "message": "guard 【ARTEX ·】: rm -rf /"
+          "message": "guard 【ARTEX 平台管控·非目标防御】此操作被禁止: rm -rf /"
         },
         {
           "ts": 120,
           "host": "web01",
-          "message": "guard 【ARTEX ·】: rm -rf /"
+          "message": "guard 【ARTEX 平台管控·非目标防御】此操作被禁止: rm -rf /"
         }
       ]
     },
@@ -51,7 +51,7 @@
         {
           "ts": 0,
           "host": "web01",
-          "message": "guard 【ARTEX ·】: rm -rf /"
+          "message": "guard 【ARTEX 平台管控·非目标防御】此操作被禁止: rm -rf /"
         },
         {
           "ts": 3600,
@@ -67,7 +67,7 @@
         {
           "ts": 0,
           "host": "web01",
-          "message": "guard 【ARTEX ·】: rm -rf /"
+          "message": "guard 【ARTEX 平台管控·非目标防御】此操作被禁止: rm -rf /"
         },
         {
           "ts": 600,

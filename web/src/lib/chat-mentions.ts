@@ -1,13 +1,13 @@
 export const mentionKinds = [
-  { kind: "finding", label: "", alias: "finding" },
-  { kind: "asset", label: "", alias: "asset" },
-  { kind: "company", label: "", alias: "company" },
-  { kind: "endpoint", label: "", alias: "api" },
+  { kind: "finding", label: "漏洞", alias: "finding" },
+  { kind: "asset", label: "资产", alias: "asset" },
+  { kind: "company", label: "企业", alias: "company" },
+  { kind: "endpoint", label: "接口", alias: "api" },
   { kind: "ip", label: "IP", alias: "ip" },
-  { kind: "app", label: "", alias: "app" },
-  { kind: "root_domain", label: "", alias: "domain" },
-  { kind: "subdomain", label: "", alias: "subdomain" },
-  { kind: "service", label: "", alias: "service" },
+  { kind: "app", label: "应用", alias: "app" },
+  { kind: "root_domain", label: "域名", alias: "domain" },
+  { kind: "subdomain", label: "子域名", alias: "subdomain" },
+  { kind: "service", label: "服务", alias: "service" },
 ] as const;
 
 export type MentionKind = (typeof mentionKinds)[number]["kind"];
@@ -43,7 +43,7 @@ export function mentionSearch(query: string) {
 }
 
 export function mentionToken(item: ChatMention) {
-  const kind = mentionKinds.find((entry) => entry.kind === item.kind)?.label ?? "";
+  const kind = mentionKinds.find((entry) => entry.kind === item.kind)?.label ?? "资产";
   const label = item.label
     .replace(/[[\]]/g, (char) => (char === "[" ? "（" : "）"))
     .replace(/\s+/g, " ")
@@ -59,10 +59,11 @@ export interface SelectedMention {
   start: number;
 }
 
-// (server/chat_mentions.go  chatMentionPattern  ).   
-//   kind   ,   mentionTextarea.kind  .
+// 토큰의 분류 라벨(漏洞·资产…)은 백엔드 와이어 포맷이라 중국어로 고정한다
+// (server/chat_mentions.go 의 chatMentionPattern 과 동일). 화면에 보이는 분류명은
+// 여기서 영어 kind 로 되돌려 주고, 소비 컴포넌트가 mentionTextarea.kind 로 한국어화한다.
 export function selectedMentions(value: string): SelectedMention[] {
-  return [...value.matchAll(/@\[(||||IP||||)#([0-9]+)(?: ([^\]\r\n]*))?\]/g)].map(
+  return [...value.matchAll(/@\[(漏洞|资产|企业|接口|IP|应用|域名|子域名|服务)#([0-9]+)(?: ([^\]\r\n]*))?\]/g)].map(
     (match) => ({
       token: match[0],
       kind: mentionKinds.find((entry) => entry.label === match[1])?.kind ?? "asset",

@@ -101,23 +101,23 @@ func ParseScopeInput(input ScopeInput) (ParsedScope, error) {
 			return rule, err
 		}
 		if rule.Kind != kind {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("%q  %s ", raw, kind)
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("%q 不是有效的 %s 范围", raw, kind)
 		}
 		return rule, nil
 	case "icp":
 		value := NormalizeICP(raw)
 		if value == "" {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("ICP ")
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("ICP 不能为空")
 		}
 		return ParsedScope{Kind: kind, Value: value, Raw: raw}, nil
 	case "keyword":
 		value := normalizeKeyword(raw)
 		if value == "" {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("")
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("企业关键词不能为空")
 		}
 		return ParsedScope{Kind: kind, Value: value, Raw: raw}, nil
 	default:
-		return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf(": %s", kind)
+		return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("不支持的范围类型: %s", kind)
 	}
 }
 
@@ -127,7 +127,7 @@ func ParseScopeInput(input ScopeInput) (ParsedScope, error) {
 func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	raw := strings.TrimSpace(line)
 	if raw == "" {
-		return ParsedScope{}, fmt.Errorf("")
+		return ParsedScope{}, fmt.Errorf("空行")
 	}
 
 	if _, _, err := net.ParseCIDR(raw); err == nil {
@@ -139,12 +139,12 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	if slash := strings.LastIndexByte(raw, '/'); slash > 0 {
 		address := strings.TrimSpace(raw[:slash])
 		if net.ParseIP(address) != nil || looksLikeIPAddress(address) {
-			return ParsedScope{Raw: raw}, fmt.Errorf(" CIDR: %s", raw)
+			return ParsedScope{Raw: raw}, fmt.Errorf("无效 CIDR: %s", raw)
 		}
 	}
 
 	if looksLikeIPAddress(raw) {
-		return ParsedScope{Raw: raw}, fmt.Errorf(" IP: %s", raw)
+		return ParsedScope{Raw: raw}, fmt.Errorf("无效 IP: %s", raw)
 	}
 
 	looksLikeDomain := strings.Contains(raw, "://") ||
@@ -152,10 +152,12 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	if looksLikeDomain {
 		return ParseScopeLine(raw)
 	}
-	// （ companies.go  kind='icp' ），。
+	// 备案号本身不含点号（如 京ICP备12345678号-1）。带点的文本多半掺了域名或版本号，
+	// 按 ICP 存下来只会得到一条永远匹配不上任何资产的死规则 —— ICP 归属走的是精确
+	// 相等比较（见 companies.go 的 kind='icp' 归属查询），所以这类文本归为关键词。
 	lower := strings.ToLower(raw)
 	if !strings.ContainsAny(raw, ".．。") &&
-		(strings.Contains(lower, "icp") || strings.Contains(raw, "")) {
+		(strings.Contains(lower, "icp") || strings.Contains(raw, "备案")) {
 		return ParseScopeInput(ScopeInput{Kind: "icp", Value: raw})
 	}
 	return ParseScopeInput(ScopeInput{Kind: "keyword", Value: raw})
@@ -164,7 +166,7 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 func scopeHostname(raw string) (string, error) {
 	candidate := strings.TrimSpace(raw)
 	if candidate == "" {
-		return "", fmt.Errorf("")
+		return "", fmt.Errorf("主机名为空")
 	}
 	if strings.HasPrefix(candidate, "//") {
 		candidate = "http:" + candidate
@@ -174,13 +176,13 @@ func scopeHostname(raw string) (string, error) {
 	parsed, err := url.Parse(candidate)
 	if err != nil || parsed.Host == "" {
 		if err == nil {
-			err = fmt.Errorf("")
+			err = fmt.Errorf("缺少主机名")
 		}
 		return "", err
 	}
 	host := strings.TrimSuffix(strings.TrimSpace(parsed.Hostname()), ".")
 	if host == "" {
-		return "", fmt.Errorf("")
+		return "", fmt.Errorf("主机名为空")
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		return ip.String(), nil
@@ -191,19 +193,19 @@ func scopeHostname(raw string) (string, error) {
 	}
 	host = strings.ToLower(host)
 	if len(host) > 253 {
-		return "", fmt.Errorf(" 253 ")
+		return "", fmt.Errorf("域名超过 253 个字符")
 	}
 	labels := strings.Split(host, ".")
 	if len(labels) < 2 {
-		return "", fmt.Errorf("")
+		return "", fmt.Errorf("域名至少需要两个标签")
 	}
 	for _, label := range labels {
 		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
-			return "", fmt.Errorf("")
+			return "", fmt.Errorf("域名标签无效")
 		}
 		for _, r := range label {
 			if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
-				return "", fmt.Errorf("")
+				return "", fmt.Errorf("域名包含无效字符")
 			}
 		}
 	}
@@ -217,16 +219,16 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 	raw := strings.TrimSpace(line)
 	r := ParsedScope{Raw: raw}
 	if raw == "" {
-		return r, fmt.Errorf("")
+		return r, fmt.Errorf("空行")
 	}
 	// CIDR first because URL parsing treats its slash as a path separator.
 	if _, ipnet, err := net.ParseCIDR(raw); err == nil {
 		ones, bits := ipnet.Mask.Size()
 		if bits == 32 && ones < 16 {
-			return r, fmt.Errorf("(IPv4  >= /16): %s", raw)
+			return r, fmt.Errorf("网段过宽(IPv4 需 >= /16): %s", raw)
 		}
 		if bits == 128 && ones < 32 {
-			return r, fmt.Errorf("(IPv6  >= /32): %s", raw)
+			return r, fmt.Errorf("网段过宽(IPv6 需 >= /32): %s", raw)
 		}
 		r.Kind, r.Net = "cidr", ipnet.String()
 		return r, nil
@@ -243,7 +245,7 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 	}
 	host, err := scopeHostname(raw)
 	if err != nil {
-		return r, fmt.Errorf("/IP/CIDR: %s", raw)
+		return r, fmt.Errorf("无法识别为有效域名/IP/CIDR: %s", raw)
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		r.Kind = "ip"
@@ -255,15 +257,15 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 		return r, nil
 	}
 	if looksLikeIPAddress(host) {
-		return r, fmt.Errorf(" IP: %s", raw)
+		return r, fmt.Errorf("无效 IP: %s", raw)
 	}
 	if strings.Contains(raw, "-") && strings.Count(raw, ".") >= 6 {
-		return r, fmt.Errorf("IP  CIDR ( 1.2.3.0/24): %s", raw)
+		return r, fmt.Errorf("IP 段请用 CIDR 表示(如 1.2.3.0/24): %s", raw)
 	}
 	// Domain (registrable). Reject bare TLDs / public suffixes.
 	d := DomainKey(host)
 	if suf, icann := publicsuffix.PublicSuffix(d); icann && suf == d {
-		return r, fmt.Errorf(" TLD : %s", raw)
+		return r, fmt.Errorf("不能用裸 TLD 作为范围: %s", raw)
 	}
 	r.Kind, r.Domain = "domain", d
 	return r, nil

@@ -72,7 +72,7 @@ function AgentGridCard({ agent, onOpen, onDeleted }: { agent: Agent; onOpen: () 
             </Badge>
           )}
         </div>
-        {/* biome-ignore lint/nursery/useNullishCoalescing:   —       ||   (??     ) */}
+        {/* biome-ignore lint/nursery/useNullishCoalescing: 설명 폴백 — 빈 설명도 안내 문구로 대체해야 하므로 || 가 의도된 동작이다(?? 는 빈 문자열을 그대로 노출한다) */}
         <p className="text-muted-foreground line-clamp-2 min-h-8 text-xs">{agent.description || t("noDescription")}</p>
         <div className="text-muted-foreground flex flex-wrap gap-1.5 text-[10px]">
           <span className="rounded border px-1.5 py-0.5">MCP {agent.mcp_count ?? 0}</span>

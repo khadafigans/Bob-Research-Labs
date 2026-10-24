@@ -45,10 +45,12 @@ export default function SystemSettingsPage() {
   const [pyInterp, setPyInterp] = React.useState("");
   const [workers, setWorkers] = React.useState("3");
   const [savingWorkers, setSavingWorkers] = React.useState(false);
+  // 操作约束注入范围(默认都开)。
   const [injectPlanner, setInjectPlanner] = React.useState(true);
   const [injectWorker, setInjectWorker] = React.useState(true);
+  // 实验功能:noa 上下文压缩(默认关)。
   const [noaCompaction, setNoaCompaction] = React.useState(false);
-  // ： /api/settings， localStorage。
+  // 纯前端偏好：不走 /api/settings，直接读写 localStorage。
   const sendMode = useChatSendMode();
   const sendModeOptions = useChatSendModeOptions();
 
@@ -267,10 +269,10 @@ export default function SystemSettingsPage() {
         <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
       </div>
 
-      {/*  grid：，（brave/tavily
-           key ）。grid 、，
-          。 mb  gap——
-          column-gap ，。 */}
+      {/* 多列而非 grid：网络搜索卡片比其余高数倍，且高度随所选后端变化（brave/tavily
+          的 key 输入是条件渲染）。grid 会按最高的一张撑满整行、在旁边留下大片空白，
+          多列则自动按内容高度平衡填充。卡片间距靠 mb 而非 gap——多列布局下
+          column-gap 只管列间距，行间距要由子元素自己给。 */}
       <div className="columns-1 gap-4 md:gap-6 lg:columns-2">
         <UpdateCard />
 

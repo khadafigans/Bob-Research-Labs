@@ -6,12 +6,13 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// ---------- P3 agent triggers (   ) ----------
+// ---------- P3 agent triggers (사용자 지정 에이전트 전용) ----------
 
+// 트리거 설정을 검증할 때 사용자에게 돌려주는 오류 문구.
 const (
-	errTriggerNoCondition  = "    ( / / /  / / )"
-	errTriggerToolSetEmpty = "      "
-	errTriggerCustomOnly   = "    "
+	errTriggerNoCondition  = "트리거 조건을 하나 이상 선택하세요(정기 실행/취약점 발견/목표 달성/작업 시간 초과/도구 호출/작업 생성)"
+	errTriggerToolSetEmpty = "도구 호출 트리거는 도구를 하나 이상 선택하세요"
+	errTriggerCustomOnly   = "트리거는 사용자 지정 에이전트만 지원합니다"
 )
 
 func (s *Server) pgListTriggers(w http.ResponseWriter, r *http.Request) {

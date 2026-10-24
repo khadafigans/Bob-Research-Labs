@@ -23,11 +23,13 @@ func (s *Server) chatGuard() *guard.Guard {
 	return guard.NewWithInterceptor(s.m.interceptor)
 }
 
-// intercept.Judge  msgModelApprovalFailed   Decision.Message  ,
+// 사용자에게 노출되는 판정(judge) 모델 오류 메시지(한국어). 이 오류는
+// intercept.Judge 가 msgModelApprovalFailed 로 감싸 Decision.Message 로 노출하므로,
+// 래퍼(intercept 패키지)와 언어가 어긋나지 않게 함께 한국어로 둔다.
 const (
-	errNoJudgeModel          = "      "
-	errJudgeModelUnavailable = "%d      "
-	errJudgeVerdictMalformed = "    . · ·  ·    "
+	errNoJudgeModel          = "사용할 수 있는 판정 모델이 설정되지 않았습니다"
+	errJudgeModelUnavailable = "%d번 판정 모델 프로필을 사용할 수 없습니다"
+	errJudgeVerdictMalformed = "모델 판정 형식이 올바르지 않습니다. 판정·실제 동작·성공 후 결과·적중 규칙을 모두 포함해야 합니다"
 )
 
 // wireInterceptReviewer installs the LLM fallback judge into the interceptor. The
@@ -324,12 +326,12 @@ func interceptFilterParams(q url.Values) (db.InterceptApprovalFilter, error) {
 	switch filter.Status {
 	case "", "pending", "allowed", "denied", "timeout":
 	default:
-		return filter, fmt.Errorf("status  pending, allowed, denied, timeout   ")
+		return filter, fmt.Errorf("status 값은 pending, allowed, denied, timeout 중 하나여야 합니다")
 	}
 	switch filter.DecisionSource {
 	case "", "model", "rule", "unknown":
 	default:
-		return filter, fmt.Errorf("decision_source  model, rule, unknown   ")
+		return filter, fmt.Errorf("decision_source 값은 model, rule, unknown 중 하나여야 합니다")
 	}
 	return filter, nil
 }
@@ -363,7 +365,7 @@ func (s *Server) interceptDecide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Decision != "allowed" && req.Decision != "denied" {
-		writeErr(w, 400, "decision  allowed  denied   ")
+		writeErr(w, 400, "decision 값은 allowed 또는 denied 중 하나여야 합니다")
 		return
 	}
 	if err := s.m.interceptor.Decide(id, req.Decision == "allowed"); err != nil {
@@ -377,6 +379,7 @@ func (s *Server) interceptDecide(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// --- tool-config (全局工具拦截范围) ---
 
 // interceptGetToolConfig returns the list of tool names that are currently
 // configured to enter the intercept rule system.
@@ -409,7 +412,7 @@ func (s *Server) interceptSetToolConfig(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// --- LLM fallback judge config () ---
+// --- LLM fallback judge config (全局模型兜底) ---
 
 // interceptGetJudgeConfig returns the resolved judge configuration. Prompt is the
 // effective prompt (built-in template when unset), so the UI can prefill it.
@@ -427,13 +430,13 @@ func (s *Server) interceptSetJudgeConfig(w http.ResponseWriter, r *http.Request)
 	switch req.FailAction {
 	case "allow", "ask", "deny":
 	default:
-		writeErr(w, 400, "fail_action  allow, ask, deny   ")
+		writeErr(w, 400, "fail_action 값은 allow, ask, deny 중 하나여야 합니다")
 		return
 	}
 	switch req.AskTimeoutAction {
 	case "allow", "deny":
 	default:
-		writeErr(w, 400, "ask_timeout_action  allow  deny   ")
+		writeErr(w, 400, "ask_timeout_action 값은 allow 또는 deny 중 하나여야 합니다")
 		return
 	}
 	if err := s.m.interceptor.SetJudgeConfig(req); err != nil {
@@ -461,29 +464,29 @@ type interceptRuleReq struct {
 
 func validateInterceptRuleReq(req interceptRuleReq) error {
 	if req.Name == "" {
-		return fmt.Errorf("name     ")
+		return fmt.Errorf("name 값은 비워 둘 수 없습니다")
 	}
 	switch req.MatchTarget {
 	case "tool_name", "tool_input":
 	default:
-		return fmt.Errorf("match_target  tool_name  tool_input   ")
+		return fmt.Errorf("match_target 값은 tool_name 또는 tool_input 중 하나여야 합니다")
 	}
 	switch req.MatchType {
 	case "string", "regex":
 	default:
-		return fmt.Errorf("match_type  string  regex   ")
+		return fmt.Errorf("match_type 값은 string 또는 regex 중 하나여야 합니다")
 	}
 	if req.Pattern == "" {
-		return fmt.Errorf("pattern     ")
+		return fmt.Errorf("pattern 값은 비워 둘 수 없습니다")
 	}
 	switch req.Action {
 	case "allow", "deny", "ask":
 	default:
-		return fmt.Errorf("action  allow, deny, ask   ")
+		return fmt.Errorf("action 값은 allow, deny, ask 중 하나여야 합니다")
 	}
 	if req.MatchType == "regex" {
 		if _, err := regexp.Compile(req.Pattern); err != nil {
-			return fmt.Errorf("pattern    : %w", err)
+			return fmt.Errorf("pattern 값이 올바른 정규식이 아닙니다: %w", err)
 		}
 	}
 	return nil
@@ -546,11 +549,11 @@ func (s *Server) interceptExecution(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if conv == nil {
-				writeErr(w, http.StatusGone, "  ")
+				writeErr(w, http.StatusGone, "대화가 이미 삭제되었습니다")
 				return
 			}
 		}
-		writeErr(w, 404, "    ")
+		writeErr(w, 404, "승인 기록이 삭제되었거나 존재하지 않습니다")
 		return
 	}
 	writeJSON(w, 200, map[string]any{"conversation_id": target.ConversationID, "task_id": target.TaskID, "session": target.Session, "seq": target.Seq, "items": activityDTOs(target.Items)})

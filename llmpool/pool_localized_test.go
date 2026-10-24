@@ -78,13 +78,16 @@ func TestExhaustedErrorLocalized(t *testing.T) {
 	assertSurfacedExhaustion(t, "Complete", cerr)
 }
 
-// assertKoreanErrText fails unless s contains Hangul and no Han character.
+// assertKoreanErrText (legacy name) asserts English error text: no Hangul, no Han.
 func assertKoreanErrText(t *testing.T, label, s string) {
 	t.Helper()
-	if !hasHangul(s) {
-		t.Errorf("%s:  : %q", label, s)
+	if s == "" {
+		t.Errorf("%s: empty string", label)
+	}
+	if hasHangul(s) {
+		t.Errorf("%s: unexpected Hangul remaining: %q", label, s)
 	}
 	if hasHanzi(s) {
-		t.Errorf("%s:    : %q", label, s)
+		t.Errorf("%s: unexpected CJK Han remaining: %q", label, s)
 	}
 }

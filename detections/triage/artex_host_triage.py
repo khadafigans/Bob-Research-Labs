@@ -126,7 +126,7 @@ LOG_MARKERS = [
         "caveat": "Seen in outbound logs from a host running ARTEX; the string is configurable.",
     },
     {
-        "value": "【ARTEX ·】",
+        "value": "【ARTEX 平台管控·非目标防御】",
         "title": "platform-guard audit-log framing marker",
         "source": "guard/guard.go",
         "severity": "high",

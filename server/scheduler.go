@@ -50,7 +50,7 @@ func (sc *Scheduler) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			sc.s.reconcileConcurrency() // :
+			sc.s.reconcileConcurrency() // 并发上限:有空位就把排队任务补位启动
 			sc.step()
 		}
 	}
@@ -142,9 +142,13 @@ func (sc *Scheduler) fireIntervals(triggers []*db.AgentTrigger) {
 			continue
 		}
 		_ = sc.pg.TouchTriggerFire(tr.ID)
-		//    . StartTriggeredRun  message  
-		// finalTriggerMessage → ca.Chat   ()    
-		// (BRIEF  #1·F16 , conversations.go taskContextHeader   ).
+		// [F10/F19 경계 판정 · 두뇌 입력 보존] 이 파일의 트리거 합성부(정기·finding·목표·초과·
+		// 생성·도구 fire* 메서드)가 만드는 `【本次…触发】…` 컨텍스트 블록과 trunc 의 `…(已截断…)`
+		// 절단 표시는 번역하지 않는다. StartTriggeredRun 의 message 인자로 들어가
+		// finalTriggerMessage → ca.Chat 의 에이전트 입력(두뇌)이자 전사에 노출되는 이중 용도
+		// 문자열이다(BRIEF 경계 #1·F16 동형, conversations.go taskContextHeader 보존 주석 참조).
+		// title 인자(`定时触发 · …` 등)는 ca.Chat 에 안 가는 표시 전용이나, 본문이 중국어로
+		// 고정되어 제목만 바꾸면 대화 안에서 언어가 섞이므로(F7·F8·F12) 함께 보존한다.
 		ctx := "\n\n[Scheduled trigger] " + now.Format("2006-01-02 15:04:05 MST")
 		sc.s.StartTriggeredRun(tr.AgentKey, fmt.Sprintf("Scheduled · %s", now.Format("15:04")), tr.IntervalMessage+ctx, 0, false, "", "")
 	}

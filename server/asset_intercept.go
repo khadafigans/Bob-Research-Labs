@@ -10,11 +10,12 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// asset   (validateAssetInterceptRuleReq)   
-//   .    CRUD (assetInterceptCreateRule·
-// assetInterceptUpdateRule) task  (validateTaskInterceptRuleReq),
-//  writeErr  HTTP 400     (  
-// ).  kind (pattern·exact_ip·cidr·kind)  
+// asset 가로채기 규칙 검증기(validateAssetInterceptRuleReq)가 돌려주는 사용자 노출
+// 오류 네 가지다. 호출처는 전역 규칙 CRUD 핸들러(assetInterceptCreateRule·
+// assetInterceptUpdateRule)와 task 수준 검증기(validateTaskInterceptRuleReq)뿐이고,
+// 모두 writeErr 로 HTTP 400 을 돌려주는 사용자 전용 경로다(에이전트 도구를 거치지
+// 않는다). 필드명과 kind 열거값(pattern·exact_ip·cidr·kind)은 클라이언트가 그대로
+// 주고받는 와이어 식별자라 번역하지 않고 원문을 유지한다.
 const (
 	errAssetInterceptPatternEmpty      = "please enter a pattern"
 	errAssetInterceptInvalidExactIPFmt = "exact_ip must be a valid IP address: %s"

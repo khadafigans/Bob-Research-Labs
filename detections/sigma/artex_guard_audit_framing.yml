@@ -20,7 +20,7 @@ logsource:
     category: application
 detection:
     keywords:
-        - '【ARTEX ·】'
+        - '【ARTEX 平台管控·非目标防御】'
     condition: keywords
 falsepositives:
     - Logs that quote this defense guide or the ARTEX source code for documentation purposes.

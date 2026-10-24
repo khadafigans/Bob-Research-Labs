@@ -5,9 +5,11 @@ import (
 	"strings"
 )
 
-// （ Outlook ） <style>  flex/grid 
+// 本文件渲染邮件的 HTML 正文。刻意用内联样式 + 简单表格布局而不是现代 CSS：
+// 邮件客户端（尤其 Outlook 与国内企业邮箱）对 <style> 块和 flex/grid 的支持
+// 差异极大，内联样式是唯一在各家都能正确显示的写法。
 
-// htmlSeverityColor ，。
+// htmlSeverityColor 返回级别对应的强调色，用于左侧色条与标题。
 func htmlSeverityColor(severity string) string {
 	switch severity {
 	case "critical":
@@ -23,11 +25,12 @@ func htmlSeverityColor(severity string) string {
 	}
 }
 
+// htmlTitle 返回邮件主题。
 func htmlTitle(m Message) string {
 	return markdownTitle(m)
 }
 
-// htmlBody  HTML。maxRunes<=0 。
+// htmlBody 渲染邮件正文 HTML。maxRunes<=0 表示不截断。
 func htmlBody(m Message, maxRunes int) string {
 	var b strings.Builder
 	b.WriteString(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:14px;color:#262626;line-height:1.6;">`)
@@ -46,7 +49,7 @@ func htmlBody(m Message, maxRunes int) string {
 	return TruncateHTML(b.String(), maxRunes)
 }
 
-// htmlBatchIntro ：。
+// htmlBatchIntro 渲染汇总邮件开头：条数与级别分布。
 func htmlBatchIntro(m Message) string {
 	var b strings.Builder
 	if m.WindowMinutes > 0 {
@@ -71,7 +74,8 @@ func htmlBatchIntro(m Message) string {
 	return b.String()
 }
 
-// htmlItem 。full=true （），
+// htmlItem 渲染单个漏洞。full=true 时含摘要与回链（单条推送），
+// false 时压缩成一行（汇总列表）。
 func htmlItem(it Item, full bool) string {
 	color := htmlSeverityColor(it.Severity)
 	var b strings.Builder
@@ -118,7 +122,8 @@ func htmlItem(it Item, full bool) string {
 	return b.String()
 }
 
-// htmlEscape  HTML 。，
+// htmlEscape 转义 HTML 文本内容。漏洞标题与摘要来自被测目标与模型输出，
+// 是不可信内容——不转义就等于允许把任意 HTML（含外链图片）注入到邮件里。
 func htmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -126,7 +131,8 @@ func htmlEscape(s string) string {
 	return s
 }
 
-// htmlEscapeAttr  HTML （，
+// htmlEscapeAttr 转义 HTML 属性值（在文本转义之外额外处理引号，
+// 防止 URL 里的引号提前闭合 href 属性）。
 func htmlEscapeAttr(s string) string {
 	s = htmlEscape(s)
 	s = strings.ReplaceAll(s, "\"", "&quot;")

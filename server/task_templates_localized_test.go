@@ -35,7 +35,7 @@ func TestTaskTemplateResponsesLocalized(t *testing.T) {
 	rec := httptest.NewRecorder()
 	var decoded taskTemplateRequest
 	if _, ok := decodeTaskTemplateRequest(rec, req, &decoded); ok {
-		t.Fatalf("too-large:     (status=%d)", rec.Code)
+		t.Fatalf("too-large: 디코딩이 통과해서는 안 됩니다 (status=%d)", rec.Code)
 	}
 	if rec.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("too-large status=%d, want 413", rec.Code)
@@ -44,10 +44,10 @@ func TestTaskTemplateResponsesLocalized(t *testing.T) {
 
 	// validateTaskTemplateRequest — a name past the rune limit returns the
 	// Korean field-too-long error (surfaced via writeErr in the handlers).
-	longName := strings.Repeat("", db.MaxTaskTemplateNameRunes+1)
+	longName := strings.Repeat("가", db.MaxTaskTemplateNameRunes+1)
 	err := validateTaskTemplateRequest(taskTemplateRequest{Name: &longName})
 	if err == nil {
-		t.Fatal("name-too-long:    ")
+		t.Fatal("name-too-long: 검증이 통과해서는 안 됩니다")
 	}
 	assertKoreanError(t, "name-too-long", err.Error())
 

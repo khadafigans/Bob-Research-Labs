@@ -29,11 +29,14 @@ func hasHangul(s string) bool {
 
 func assertKorean(t *testing.T, label, s string) {
 	t.Helper()
+	if s == "" {
+		t.Errorf("%s: empty string", label)
+	}
 	if hasHan(s) {
 		t.Errorf("%s: Chinese Han ideograph remains: %q", label, s)
 	}
-	if !hasHangul(s) {
-		t.Errorf("%s: no Hangul found (expected Korean): %q", label, s)
+	if hasHangul(s) {
+		t.Errorf("%s: unexpected Hangul remaining: %q", label, s)
 	}
 }
 

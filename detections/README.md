@@ -1,11 +1,11 @@
 # ARTEX detection rules
 
-English · [](README.ko.md)
+English · [한국어](README.ko.md)
 
-> :   [· (docs/defense-ko.md)](../docs/defense-ko.md) 4 " "
->    [Sigma](https://sigmahq.io)   .     
->     **· ** .   
-> **[detections/README.ko.md](README.ko.md)**  .
+> 한국어: 이 디렉터리는 [방어·탐지 가이드(docs/defense-ko.md)](../docs/defense-ko.md)의 4절 "탐지 규칙"을
+> 실제로 배포 가능한 [Sigma](https://sigmahq.io) 규칙으로 옮긴 것입니다. 모든 규칙은 자신이 소유하거나 서면
+> 허가를 받은 시스템을 지키는 **방어·탐지 목적에만** 사용하십시오. 한국어 전체 문서는
+> **[detections/README.ko.md](README.ko.md)** 를 보십시오.
 
 Deployable [Sigma](https://sigmahq.io) rules that formalize the pseudo-rules in the defense guide
 ([Korean](../docs/defense-ko.md) · [English](../docs/defense-en.md), section 4) into a vendor-neutral

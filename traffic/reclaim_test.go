@@ -23,14 +23,14 @@ func bulkRecord(tr *Traffic, host string, n, size int) {
 func TestNewIndexEnablesIncrementalVacuum(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.incrementalVacuum {
-		t.Fatal("")
+		t.Fatal("新建索引库未启用增量回收")
 	}
 	var mode int
 	if err := tr.DB().QueryRow(`PRAGMA auto_vacuum`).Scan(&mode); err != nil {
 		t.Fatal(err)
 	}
 	if mode != autoVacuumIncremental {
-		t.Fatalf("auto_vacuum=%d， %d", mode, autoVacuumIncremental)
+		t.Fatalf("auto_vacuum=%d，应为 %d", mode, autoVacuumIncremental)
 	}
 }
 
@@ -45,17 +45,17 @@ func TestDeleteReclaimsIndexSpace(t *testing.T) {
 	bulkRecord(tr, host, 30, 200*1024)
 	grown := tr.indexBytes()
 	if grown < 5<<20 {
-		t.Fatalf(" %d ，", grown)
+		t.Fatalf("索引只有 %d 字节，样本不足以验证回收", grown)
 	}
 
 	if n, err := tr.DeleteHostsExact([]string{host}); err != nil || n != 30 {
-		t.Fatalf("DeleteHostsExact=(%d,%v)， (30,nil)", n, err)
+		t.Fatalf("DeleteHostsExact=(%d,%v)，应为 (30,nil)", n, err)
 	}
-	tr.reaping.Wait() // 
+	tr.reaping.Wait() // 回收在后台分块进行
 
 	after := tr.indexBytes()
 	if after > grown/4 {
-		t.Fatalf(" %d （ %d），", after, grown)
+		t.Fatalf("删除后索引仍占 %d 字节（删除前 %d），空间没有还给文件系统", after, grown)
 	}
 	// A handful of pages incremental_vacuum could not move to the end of the file
 	// is a normal residual; the ~1500 that the deletion freed must be gone.
@@ -64,7 +64,7 @@ func TestDeleteReclaimsIndexSpace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if free > 64 {
-		t.Fatalf(" %d ", free)
+		t.Fatalf("仍有 %d 个空闲页未回收", free)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestDeleteReclaimsIndexSpace(t *testing.T) {
 func TestReclaimMergesFTSTombstones(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.fts {
-		t.Skip(" FTS5")
+		t.Skip("驱动未启用 FTS5")
 	}
 	// Deleted in batches, which is what leaves tombstones spread over many
 	// segments rather than emptying the index in one shot.
@@ -82,7 +82,7 @@ func TestReclaimMergesFTSTombstones(t *testing.T) {
 		host := fmt.Sprintf("fts%d.example.com", round)
 		for i := 0; i < 20; i++ {
 			tr.record(newFlow(host, "GET", fmt.Sprintf("/p/%d", i), nil,
-				[]byte(strings.Repeat("secret token  padding ", 200))))
+				[]byte(strings.Repeat("secret token 中文正文 padding ", 200))))
 		}
 		if _, err := tr.DeleteHostsExact([]string{host}); err != nil {
 			t.Fatal(err)
@@ -98,11 +98,11 @@ func TestReclaimMergesFTSTombstones(t *testing.T) {
 		t.Fatal(err)
 	}
 	if exchanges != 0 {
-		t.Fatalf(" %d ", exchanges)
+		t.Fatalf("还剩 %d 条流量", exchanges)
 	}
 	// A fully merged, empty contentless index keeps only its structure rows.
 	if segments > 8 {
-		t.Fatalf(" %d ，tombstone ", segments)
+		t.Fatalf("全文索引残留 %d 行段数据，tombstone 未被合并回收", segments)
 	}
 }
 
@@ -134,15 +134,15 @@ func TestReclaimOnLegacyIndexIsHarmless(t *testing.T) {
 	}
 	t.Cleanup(func() { tr.Close() })
 	if tr.incrementalVacuum {
-		t.Fatal("")
+		t.Fatal("旧库不应报告已启用增量回收")
 	}
 
 	const host = "legacy.example.com"
 	bulkRecord(tr, host, 8, 200*1024)
 	if n, err := tr.DeleteHostsExact([]string{host}); err != nil || n != 8 {
-		t.Fatalf("DeleteHostsExact=(%d,%v)， (8,nil)", n, err)
+		t.Fatalf("DeleteHostsExact=(%d,%v)，应为 (8,nil)", n, err)
 	}
-	tr.reaping.Wait() // ，
+	tr.reaping.Wait() // 必须收敛，不能卡在预算里
 
 	// The freelist stays populated: that is the whole reason a compaction entry
 	// point is needed for pre-existing databases.
@@ -151,7 +151,7 @@ func TestReclaimOnLegacyIndexIsHarmless(t *testing.T) {
 		t.Fatal(err)
 	}
 	if free == 0 {
-		t.Fatal("，")
+		t.Fatal("旧库居然回收了空闲页，说明测试没有真的构造出旧库")
 	}
 }
 
@@ -176,7 +176,7 @@ func TestDeleteAllPurgesAndCompacts(t *testing.T) {
 	}
 	grown := tr.indexBytes()
 	if grown < 5<<20 {
-		t.Fatalf(" %d ，", grown)
+		t.Fatalf("索引只有 %d 字节，样本不足", grown)
 	}
 
 	deleted, reclaimed, err := tr.DeleteAll()
@@ -184,15 +184,15 @@ func TestDeleteAllPurgesAndCompacts(t *testing.T) {
 		t.Fatalf("DeleteAll: %v", err)
 	}
 	if deleted != 22 {
-		t.Fatalf("deleted=%d， 22", deleted)
+		t.Fatalf("deleted=%d，应为 22", deleted)
 	}
 	tr.reaping.Wait()
 
 	if reclaimed < grown/2 {
-		t.Fatalf(" %d （ %d）", reclaimed, grown)
+		t.Fatalf("只回收了 %d 字节（删除前索引 %d）", reclaimed, grown)
 	}
 	if after := tr.indexBytes(); after > grown/8 {
-		t.Fatalf(" %d （ %d）", after, grown)
+		t.Fatalf("清空后索引仍占 %d 字节（删除前 %d）", after, grown)
 	}
 	for _, q := range []string{
 		`SELECT COUNT(*) FROM exchanges`,
@@ -204,16 +204,16 @@ func TestDeleteAllPurgesAndCompacts(t *testing.T) {
 			t.Fatal(err)
 		}
 		if c != 0 {
-			t.Fatalf("%s = %d， 0", q, c)
+			t.Fatalf("%s = %d，应为 0", q, c)
 		}
 	}
 	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
-		t.Fatalf(" host ：%v", err)
+		t.Fatalf("孤立的历史 host 目录未被清理：%v", err)
 	}
 	// Recording must keep working against the freshly rewritten file.
-	tr.record(newFlow("d.example.com", "GET", "/after", nil, []byte("")))
+	tr.record(newFlow("d.example.com", "GET", "/after", nil, []byte("清空后仍可录制")))
 	if n, err := tr.Count(); err != nil || n != 1 {
-		t.Fatalf(" Count=(%d,%v)， (1,nil)", n, err)
+		t.Fatalf("清空后 Count=(%d,%v)，应为 (1,nil)", n, err)
 	}
 }
 
@@ -233,7 +233,7 @@ func TestDeleteAllConvertsLegacyIndex(t *testing.T) {
 	}
 	t.Cleanup(func() { tr.Close() })
 	if tr.incrementalVacuum {
-		t.Fatal("")
+		t.Fatal("旧库不应报告已启用增量回收")
 	}
 
 	bulkRecord(tr, "legacy.example.com", 10, 200*1024)
@@ -241,7 +241,7 @@ func TestDeleteAllConvertsLegacyIndex(t *testing.T) {
 		t.Fatalf("DeleteAll: %v", err)
 	}
 	if !tr.incrementalVacuum {
-		t.Fatal("")
+		t.Fatal("清空后旧库未被转换为增量回收模式")
 	}
 
 	// The converted database now reclaims on an ordinary host deletion.
@@ -252,6 +252,6 @@ func TestDeleteAllConvertsLegacyIndex(t *testing.T) {
 	}
 	tr.reaping.Wait()
 	if after := tr.indexBytes(); after > grown/4 {
-		t.Fatalf("：%d （ %d）", after, grown)
+		t.Fatalf("转换后普通删除仍未回收：%d 字节（删除前 %d）", after, grown)
 	}
 }

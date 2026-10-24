@@ -2,8 +2,9 @@ import type { CompanyScopeKind, CompanyScopeRule } from "@/lib/types";
 
 export const MAX_COMPANY_SCOPE_VALUE_LENGTH = 1024;
 
-//    ,  (scope-text-editor  next-intl  t(), mock
-// handler  companyScopeErrorText())     .
+// 검증 결과는 지역화 가능한 "오류 코드"로 돌려준다. 이 모듈은 React 밖 순수 함수라
+// 직접 번역할 수 없으므로, 노출 지점(scope-text-editor 는 next-intl 의 t(), mock
+// handler 는 companyScopeErrorText())이 코드를 각 언어 문구로 바꾼다.
 export type CompanyScopeErrorCode =
   | "empty"
   | "tooLong"
@@ -143,26 +144,26 @@ export function companyScopeRuleError(rule: CompanyScopeRule): CompanyScopeError
   return "";
 }
 
-// mock handler(React ) :     .  UI 
-// scope-text-editor  next-intl  t("scopeEditor.error.*")  .
+// mock handler(React 밖) 전용: 오류 코드를 한국어 문구로 바꾼다. 실제 UI 는
+// scope-text-editor 가 next-intl 의 t("scopeEditor.error.*") 로 지역화한다.
 export function companyScopeErrorText(code: CompanyScopeErrorCode | "" | undefined): string {
   switch (code) {
     case "empty":
-      return "   ";
+      return "범위 값을 입력해 주세요";
     case "tooLong":
-      return ` ${MAX_COMPANY_SCOPE_VALUE_LENGTH}   `;
+      return `최대 ${MAX_COMPANY_SCOPE_VALUE_LENGTH}자까지 입력할 수 있습니다`;
     case "domainSpace":
-      return "     URL  ";
+      return "공백 없이 유효한 도메인 또는 URL을 입력해 주세요";
     case "domainInvalid":
-      return "   URL  ";
+      return "유효한 도메인 또는 URL을 입력해 주세요";
     case "ipInvalid":
-      return " IP  ";
+      return "유효한 IP를 입력해 주세요";
     case "cidrInvalid":
-      return " CIDR   ";
+      return "유효한 CIDR 대역을 입력해 주세요";
     case "cidrPrefixV4":
-      return "IPv4   /16 ~ /32  ";
+      return "IPv4 대역 프리픽스는 /16 ~ /32 범위여야 합니다";
     case "cidrPrefixV6":
-      return "IPv6   /32 ~ /128  ";
+      return "IPv6 대역 프리픽스는 /32 ~ /128 범위여야 합니다";
     default:
       return "";
   }
@@ -203,7 +204,7 @@ export function classifyCompanyScopeLine(
     const error = companyScopeRuleError(rule);
     return error ? { line, error } : { line, rule };
   }
-  if (/icp|/i.test(value)) return { line, rule: { kind: "icp", value } };
+  if (/icp|备案/i.test(value)) return { line, rule: { kind: "icp", value } };
   return { line, rule: { kind: "keyword", value } };
 }
 

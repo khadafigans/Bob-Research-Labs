@@ -56,6 +56,7 @@ func TestServerMgmtConstantsLocalized(t *testing.T) {
 		"errMgmtTmplSyntax":         errMgmtTmplSyntax,
 		"errMgmtTmplVarPre":         errMgmtTmplVarPre,
 		"errMgmtTmplVarPost":        errMgmtTmplVarPost,
+		// 형식 문자열은 실제 포매팅 결과로 검사한다(한국어 + verb 보존).
 		"errMgmtAPIReturned": fmt.Sprintf(errMgmtAPIReturned, 404, "detail"),
 	}
 	for label, msg := range cases {
@@ -70,22 +71,22 @@ func TestServerMgmtAPIReturnedFormat(t *testing.T) {
 	msg := fmt.Sprintf(errMgmtAPIReturned, 404, "boom-body")
 	assertKoreanError(t, "errMgmtAPIReturned", msg)
 	if !strings.Contains(msg, "404") || !strings.Contains(msg, "boom-body") {
-		t.Fatalf("      : %q", msg)
+		t.Fatalf("형식 문자열이 상태 코드와 본문을 보존해야 합니다: %q", msg)
 	}
 }
 
 // TestServerMgmtSkillExistsSentinel guards the cross-stack contract: the server's
-// duplicate-skill message must carry the " " marker that
-// web/src/app/(main)/system/skills/page.tsx greps (msg.includes(" ")) to
-// switch into the overwrite-confirm flow. Drift here silently disables overwrite.
+// duplicate-skill message must carry the "already exists" marker that
+// web/src/app/(main)/system/skills/page.tsx greps (msg.includes("already exists"))
+// to switch into the overwrite-confirm flow. Drift silently disables overwrite.
 func TestServerMgmtSkillExistsSentinel(t *testing.T) {
 	msg := errMgmtSkillExistsPre + "my-skill" + errMgmtSkillExistsPost
 	assertKoreanError(t, "skillExists", msg)
-	if !strings.Contains(msg, " ") {
-		t.Fatalf("   ' '  : %q", msg)
+	if !strings.Contains(msg, "already exists") {
+		t.Fatalf("missing frontend mirror marker 'already exists': %q", msg)
 	}
 	if !strings.Contains(msg, "my-skill") {
-		t.Fatalf("    : %q", msg)
+		t.Fatalf("skill name must appear in message: %q", msg)
 	}
 }
 
@@ -96,10 +97,10 @@ func TestServerMgmtPGGate503Localized(t *testing.T) {
 	s := &Server{m: &Manager{}} // pg == nil
 	rec := httptest.NewRecorder()
 	if got := s.pg(rec); got != nil {
-		t.Fatal("pg()  DB   nil   ")
+		t.Fatal("pg() 는 DB 핸들이 없으면 nil 을 반환해야 합니다")
 	}
 	if rec.Code != 503 {
-		t.Fatalf("  503   %d", rec.Code)
+		t.Fatalf("상태 코드 503 을 기대했으나 %d", rec.Code)
 	}
 	assertKoreanError(t, "pg.503", decodeErrorField(t, rec.Body.Bytes()))
 }
@@ -113,12 +114,12 @@ func TestServerMgmtDeleteTaskBadIDLocalized(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.pgDeleteTask(rec, req)
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("  400   %d ( %s)", rec.Code, rec.Body.Bytes())
+		t.Fatalf("상태 코드 400 을 기대했으나 %d (본문 %s)", rec.Code, rec.Body.Bytes())
 	}
 	got := decodeErrorField(t, rec.Body.Bytes())
 	assertKoreanError(t, "deleteTask.badID", got)
 	if got != errMgmtTaskIDInvalid {
-		t.Fatalf("errMgmtTaskIDInvalid   : %q", got)
+		t.Fatalf("errMgmtTaskIDInvalid 와 일치해야 합니다: %q", got)
 	}
 }
 
@@ -130,12 +131,12 @@ func TestServerMgmtListModelsNoKeyLocalized(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.pgListModels(rec, req)
 	if rec.Code != 200 {
-		t.Fatalf("  200   %d", rec.Code)
+		t.Fatalf("상태 코드 200 을 기대했으나 %d", rec.Code)
 	}
 	got := decodeErrorField(t, rec.Body.Bytes())
 	assertKoreanError(t, "listModels.noKey", got)
 	if got != errMgmtNoAPIKey {
-		t.Fatalf("errMgmtNoAPIKey   : %q", got)
+		t.Fatalf("errMgmtNoAPIKey 와 일치해야 합니다: %q", got)
 	}
 }
 
@@ -144,17 +145,17 @@ func TestServerMgmtListModelsNoKeyLocalized(t *testing.T) {
 // disallowed-variable branches must return Korean.
 func TestServerMgmtValidateTemplateLocalized(t *testing.T) {
 	if msg := validateTemplate("{{", nil); msg == "" {
-		t.Fatal("     ")
+		t.Fatal("깨진 템플릿은 오류 문구를 반환해야 합니다")
 	} else {
 		assertKoreanError(t, "validateTemplate.syntax", msg)
 	}
 	msg := validateTemplate("{{.Bogus}}", nil)
 	if msg == "" {
-		t.Fatal("       ")
+		t.Fatal("허용 목록에 없는 변수는 오류 문구를 반환해야 합니다")
 	}
 	assertKoreanError(t, "validateTemplate.var", msg)
 	if !strings.Contains(msg, "Bogus") {
-		t.Fatalf("    : %q", msg)
+		t.Fatalf("변수 이름이 메시지에 포함돼야 합니다: %q", msg)
 	}
 }
 
@@ -162,7 +163,7 @@ func TestServerMgmtValidateTemplateLocalized(t *testing.T) {
 // text (rendered in the prompt editor's variable palette) as Korean.
 func TestServerMgmtGlobalPromptVarsLocalized(t *testing.T) {
 	if len(globalPromptVars) == 0 {
-		t.Fatal("globalPromptVars   ")
+		t.Fatal("globalPromptVars 가 비어 있습니다")
 	}
 	for _, v := range globalPromptVars {
 		assertKoreanError(t, "globalPromptVar."+v.Name, v.Description)

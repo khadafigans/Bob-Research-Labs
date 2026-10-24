@@ -26,16 +26,17 @@ const (
 	maxArchiveBytes = int64(1 << 47) // 128 TiB safety ceiling for corrupt headers.
 )
 
-// errArchiveStagedAndOriginalCoexist        
+// errArchiveStagedAndOriginalCoexist 는 보관 패키지를 삭제하려 임시 파일로 옮기는 과정에서
+// 원본 파일과 삭제 임시 파일(.deleting-N)이 동시에 존재하는 모순 상태를 사용자에게 알린다.
 //
-//   (  ): stageTaskArchivePackageDelete( 506) →
-// deleteTaskArchive(task_archives.go:400) →    runOneTaskArchiveJob
-// (task_archives.go:102) → FailTaskArchiveJob  task_archives.error  
-// (db/task_archives.go:435) → API  TaskArchive.Error("error" JSON)  →
-// tasks/page.tsx  TaskArchivesPanel  {archive.error}    .
-// actool·planner   0(  ) .     
-// (archiveTask  task_archives.go:120·132·173, validateArchivePath  421·433)  .
-const errArchiveStagedAndOriginalCoexist = "        "
+// 호출 그래프 판정(사용자 노출 전용): stageTaskArchivePackageDelete(아래 506행) →
+// deleteTaskArchive(task_archives.go:400) → 백그라운드 아카이브 워커 runOneTaskArchiveJob
+// (task_archives.go:102) → FailTaskArchiveJob 이 task_archives.error 컬럼에 저장
+// (db/task_archives.go:435) → API 가 TaskArchive.Error("error" JSON)로 노출 →
+// tasks/page.tsx 의 TaskArchivesPanel 이 {archive.error} 로 화면에 직접 표시.
+// actool·planner 되먹임 경로 0(두뇌 입력 아님)이라 한국어화한다. 같은 전파 경로의 형제 오류
+// (archiveTask 의 task_archives.go:120·132·173, validateArchivePath 의 421·433)도 이미 한국어다.
+const errArchiveStagedAndOriginalCoexist = "보관 패키지의 원본 파일과 삭제 임시 파일이 동시에 존재합니다"
 
 type archiveFileMove struct {
 	Source   string `json:"source"`
@@ -589,7 +590,10 @@ func writeTaskArchivePackage(path, payloadDir string, snapshot *pgdb.TaskArchive
 			return err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			log.Printf("[task-archive] （，）：%s", current)
+			// 归档格式端到端只支持普通文件与目录（解包端对其它类型直接报错），
+			// 无法还原符号链接。跳过而非整包失败：不读取链接目标(lstat，不越出目录树)，
+			// 也不写入 symlink 条目；链接指向树内时目标文件本身仍会被单独遍历归档。
+			log.Printf("[task-archive] 跳过符号链接（归档不支持，不影响其它文件）：%s", current)
 			return nil
 		}
 		header, err := tar.FileInfoHeader(info, "")

@@ -23,31 +23,25 @@ func TestShutdownContextPreservesNamedCause(t *testing.T) {
 	}
 }
 
-// TestPrintBannerLocalized verifies that the startup banner printed to stdout is
-// Korean and carries no leftover CJK Han characters. This is the first thing a
-// user sees when running ARTEX, so it must not stay in Chinese (backlog F11).
-// The "[config] ..." log lines in run() are intentionally out of scope — they
-// are logs, which the localization brief ranks lowest (backlog Z2).
+// TestPrintBannerLocalized verifies the startup banner is English Bob Research
+// Labs branding with no leftover CJK Han / Hangul.
 func TestPrintBannerLocalized(t *testing.T) {
 	out := captureStdout(t, func() { printBanner(":8787") })
-	t.Logf(" :\n%s", out)
+	t.Logf("banner sample:\n%s", out)
 
-	hasHangul := strings.ContainsFunc(out, func(r rune) bool {
-		return unicode.Is(unicode.Hangul, r)
-	})
-	if !hasHangul {
-		t.Fatalf("  : %q", out)
+	if strings.ContainsFunc(out, func(r rune) bool { return unicode.Is(unicode.Hangul, r) }) {
+		t.Fatalf("banner still has Hangul: %q", out)
 	}
 
-	for _, want := range []string{"   ", "", " ", ":8787"} {
+	for _, want := range []string{"Bob Research Labs", "Version", "Listening on", ":8787"} {
 		if !strings.Contains(out, want) {
-			t.Errorf(" %q  : %q", want, out)
+			t.Errorf("banner missing %q: %q", want, out)
 		}
 	}
 
 	for _, r := range out {
 		if unicode.Is(unicode.Han, r) {
-			t.Errorf(" CJK  (%q): %q", r, out)
+			t.Errorf("banner has leftover CJK Han (%q): %q", r, out)
 		}
 	}
 }

@@ -10,10 +10,11 @@ import (
 
 const maxTaskAssetRequestBytes = 512 << 10
 
-//   API      . (scope·asset_ids)
+// 작업 자산 API 가 사용자에게 돌려주는 오류 응답 문구. 필드명(scope·asset_ids)은
+// 요청 본문 키라 원문 그대로 두고, 사람이 읽는 메시지만 한국어로 둔다.
 const (
-	errTaskAssetRequestTooLarge = "   "
-	errTaskAssetScopeConflict   = "scope  asset_ids     "
+	errTaskAssetRequestTooLarge = "요청 본문이 너무 큽니다"
+	errTaskAssetScopeConflict   = "scope 와 asset_ids 는 동시에 제출할 수 없습니다"
 )
 
 func writeTaskAssetError(w http.ResponseWriter, err error) {

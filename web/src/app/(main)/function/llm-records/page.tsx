@@ -64,6 +64,7 @@ function tryFormatJSON(s: string): string {
   }
 }
 
+// 현재 상자 안의 텍스트를 복사하는 작은 버튼. 복사에 성공하면 잠시 체크 표시를 보여 준다. text 가 비어 있거나 자리표시자뿐이면 비활성화한다.
 function CopyButton({ text }: { text: string }) {
   const t = useTranslations("llmRecords");
   const [copied, setCopied] = React.useState(false);
@@ -81,7 +82,7 @@ function CopyButton({ text }: { text: string }) {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // navigator.clipboard    (: http )    execCommand  .
+      // navigator.clipboard 는 안전하지 않은 컨텍스트(예: http 사설망)에서는 쓸 수 없어 execCommand 로 폴백한다.
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed";
@@ -91,7 +92,7 @@ function CopyButton({ text }: { text: string }) {
       try {
         document.execCommand("copy");
       } catch {
-        /* :     */
+        /* 무시: 지원하지 않으면 조용히 넘어간다 */
       }
       document.body.removeChild(ta);
     }
@@ -138,14 +139,15 @@ export default function LLMRecordsPage() {
   const [selected, setSelected] = React.useState<LLMRecordItem | null>(null);
   const [detail, setDetail] = React.useState<LLMRecordDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
-  //   / HTTP  .  provider     :  
-  //  schema   ,  tool_use  .
+  // 정규화 뷰 / HTTP 원문 뷰. 원문은 provider 쪽 문제를 진단하는 유일한 근거다: 정규화 뷰는
+  // 도구 schema 를 담지 않고, 응답에도 tool_use 블록이 없다.
   const [rawView, setRawView] = React.useState(false);
 
   const hasRaw = !!(detail?.raw_request || detail?.raw_response);
+  // 토글은 사용자 선택을 유지하되, 원문이 없는 옛 기록으로 전환하면 빈 화면 대신 자동으로 파싱 뷰로 되돌린다.
   const showRaw = rawView && hasRaw;
-  //    JSON  pretty-print        .   SSE
-  // , tryFormatJSON            .
+  // 원문 요청 본문은 JSON 이라 pretty-print 는 배치만 바꾸고 의미는 바꾸지 않아 읽기 편하다. 원문 응답은 SSE
+  // 프레임이고, tryFormatJSON 은 파싱에 실패하면 원본을 그대로 돌려주므로 양쪽이 한 함수를 함께 쓰면 된다.
   const reqText = showRaw
     ? detail?.raw_request && tryFormatJSON(detail.raw_request)
     : detail?.request_body && tryFormatJSON(detail.request_body);
@@ -167,7 +169,7 @@ export default function LLMRecordsPage() {
         if (alive) setRecEnabled(!!s.llm_record);
       })
       .catch(() => {
-        /*       */
+        /* 조회 실패는 무시하고 기본 상태를 유지한다 */
       });
     return () => {
       alive = false;
@@ -218,7 +220,7 @@ export default function LLMRecordsPage() {
         setTotal(r.total ?? 0);
       })
       .catch(() => {
-        /*    (finally    ) */
+        /* 조회 실패는 무시한다 (finally 에서 로딩 상태 해제) */
       })
       .finally(() => alive && setLoading(false));
     api
@@ -227,7 +229,7 @@ export default function LLMRecordsPage() {
         if (alive) setTasks(r.tasks ?? []);
       })
       .catch(() => {
-        /*    */
+        /* 조회 실패는 무시한다 */
       });
     return () => {
       alive = false;
@@ -248,7 +250,7 @@ export default function LLMRecordsPage() {
         setReloadTick((n) => n + 1);
       })
       .catch(() => {
-        /*      (finally    ) */
+        /* 삭제 후 재조회 실패는 무시한다 (finally 에서 삭제 상태 해제) */
       })
       .finally(() => setDeleting(false));
   };
@@ -268,7 +270,7 @@ export default function LLMRecordsPage() {
         if (alive) setDetail(d);
       })
       .catch(() => {
-        /*     (finally    ) */
+        /* 상세 조회 실패는 무시한다 (finally 에서 로딩 상태 해제) */
       })
       .finally(() => {
         if (alive) setDetailLoading(false);
@@ -510,8 +512,8 @@ export default function LLMRecordsPage() {
                   Error
                 </Badge>
               )}
-              {/*   .         , 「  」
-                    . */}
+              {/* 원문 뷰 토글. 옛 기록은 원문이 없어 이때는 조용히 폴백하지 않고 비활성화해, 「원문과 파싱이 같다」처럼
+                  보이는 것을 막는다. */}
               <Button
                 variant={showRaw ? "secondary" : "ghost"}
                 size="sm"

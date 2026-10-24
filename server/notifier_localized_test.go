@@ -12,7 +12,7 @@ import (
 
 // TestNotifierDeliveryReasonsLocalized guards F17: every delivery failure/defer
 // reason that notifier.go writes into notification_deliveries.last_error — which
-// notify_api.go echoes back to the " " table in delivery-list.tsx — must be
+// notify_api.go echoes back to the "전달 기록" table in delivery-list.tsx — must be
 // Korean (Hangul present, no Chinese Han). Diagnostic log.Printf lines stay in the
 // original language (Z2) and are intentionally not covered here.
 func TestNotifierDeliveryReasonsLocalized(t *testing.T) {
@@ -42,16 +42,16 @@ func TestNotifierDeliveryReasonsLocalized(t *testing.T) {
 func TestNotifierParseSnapshotErrorsLocalized(t *testing.T) {
 	// Empty snapshot.
 	if _, err := parseSnapshot(&db.NotificationDelivery{ID: 7}); err == nil {
-		t.Fatal("      ")
+		t.Fatal("빈 스냅샷이 오류 없이 통과해서는 안 됩니다")
 	} else {
 		assertKoreanError(t, "parseSnapshot.empty", err.Error())
 		if !strings.Contains(err.Error(), "7") {
-			t.Fatalf("parseSnapshot.empty:   ID 7   : %q", err.Error())
+			t.Fatalf("parseSnapshot.empty: 전달 항목 ID 7 이 메시지에 없습니다: %q", err.Error())
 		}
 	}
 	// Malformed JSON snapshot.
 	if _, err := parseSnapshot(&db.NotificationDelivery{ID: 9, Snapshot: []byte("{bad")}); err == nil {
-		t.Fatal(" JSON      ")
+		t.Fatal("깨진 JSON 스냅샷이 오류 없이 통과해서는 안 됩니다")
 	} else {
 		assertKoreanError(t, "parseSnapshot.malformed", err.Error())
 	}
@@ -65,7 +65,7 @@ func TestNotifierRenderBatchAllUnparseableLocalized(t *testing.T) {
 	n := &Notifier{}
 	deliveries := []*db.NotificationDelivery{{ID: 1}, {ID: 2}}
 	if _, _, err := n.renderBatch(context.Background(), deliveries, "", 30); err == nil {
-		t.Fatal("       ")
+		t.Fatal("모든 스냅샷이 해석 불가일 때 오류가 나와야 합니다")
 	} else {
 		assertKoreanError(t, "renderBatch.allUnparseable", err.Error())
 	}

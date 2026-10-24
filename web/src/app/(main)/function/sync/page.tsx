@@ -84,6 +84,7 @@ function ScopeSentryPanel() {
   );
 }
 
+// ── 데이터 소스 상태 카드 ─────────────────────────────────────────────────────
 
 function DataSourceCard({
   status,
@@ -205,6 +206,7 @@ function StatusBadge({ status, loading }: { status: SSStatus | null; loading: bo
   );
 }
 
+// ── 동기화 작업 영역(프로젝트/작업 기준) ──────────────────────────────────────
 
 function SyncWorkbench() {
   const t = useTranslations("assetSync");
@@ -333,7 +335,7 @@ function SyncWorkbench() {
         <CardTitle className="text-base">{t("workbenchTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/*   */}
+        {/* 기준 전환 */}
         <Tabs
           value={dimension}
           onValueChange={(v) => {
@@ -347,7 +349,7 @@ function SyncWorkbench() {
           </TabsList>
         </Tabs>
 
-        {/*   +  */}
+        {/* 자산 유형 + 옵션 */}
         <div className="flex flex-wrap items-center gap-4">
           <span className="font-medium text-sm">{t("syncAssetsLabel")}</span>
           {ASSET_TYPES.map((key) => (
@@ -368,7 +370,7 @@ function SyncWorkbench() {
           )}
         </div>
 
-        {/*  +  */}
+        {/* 검색 + 동작 */}
         <div className="flex items-center gap-2">
           <div className="relative max-w-xs flex-1">
             <SearchIcon className="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -395,7 +397,7 @@ function SyncWorkbench() {
           </Button>
         </div>
 
-        {/*  */}
+        {/* 목록 */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -421,7 +423,7 @@ function SyncWorkbench() {
           </Table>
         </div>
 
-        {/*   */}
+        {/* 페이지 나눔 */}
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
             {tp("prev")}
@@ -437,7 +439,7 @@ function SyncWorkbench() {
           </Button>
         </div>
 
-        {/*  */}
+        {/* 결과 */}
         {result && <SyncResult result={result} />}
       </CardContent>
     </Card>

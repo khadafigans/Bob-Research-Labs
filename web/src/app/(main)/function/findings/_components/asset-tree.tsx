@@ -22,6 +22,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import type { FindingAssetKind, FindingAssetNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+// 图标沿用资产页的类型映射,同一种资产在两处长得一样。
 const KIND_ICON: Record<FindingAssetKind, LucideIcon> = {
   company: BuildingIcon,
   root_domain: GlobeIcon,
@@ -33,10 +34,12 @@ const KIND_ICON: Record<FindingAssetKind, LucideIcon> = {
   none: CircleDashedIcon,
 };
 
+// TreeNode 是节点数组组装出来的树。后端已按「同父下发现多的在前」排好序,
+// 这里只需按数组顺序挂载。
 interface TreeNode extends FindingAssetNode {
   children: TreeNode[];
   depth: number;
-  /** ; label  label ()。 */
+  /** 树上真正渲染的文字;完整 label 仍保留在 label 里(悬停提示与面包屑用)。 */
   display: string;
 }
 
@@ -52,7 +55,8 @@ function parseAssetURL(raw: string): URL | null {
   }
 }
 
-// hostOf :URL  hostname,「host:port」 host,
+// hostOf 取一个节点代表的宿主:URL 取 hostname,「host:port」取 host,其余就是
+// 标签本身(根域名 / 子域名 / IP)。
 function hostOf(label: string): string {
   const url = parseAssetURL(label);
   if (url) return stripBrackets(url.hostname);
@@ -60,19 +64,25 @@ function hostOf(label: string): string {
   return stripBrackets(hostPort ? hostPort[1] : label);
 }
 
-// shortLabel 。service / endpoint  label  URL,
+// shortLabel 去掉与父节点重复的前缀。service / endpoint 的 label 是完整 URL,而
+// 宿主域名/IP 上一行已经写过了 —— 深层节点本来就窄,再把 host 重复一遍,真正有
+// 信息量的端口和路径就全被截断掉了。完整值仍在 title 与面包屑里。
 function shortLabel(node: FindingAssetNode, parent?: FindingAssetNode): string {
   if (!parent) return node.label;
 
+  // 子域名挂在根域名下:去掉根域名后缀,只留自己那一段。
   if (node.kind === "subdomain" && node.label.endsWith(`.${parent.label}`)) {
     return node.label.slice(0, -(parent.label.length + 1)) || node.label;
   }
   if (node.kind !== "service" && node.kind !== "endpoint") return node.label;
 
+  // 父标签正好是自己的前缀(接口挂在同 URL 的服务下、服务挂在同 IP 下):直接砍掉。
   if (node.label.startsWith(parent.label)) {
     return node.label.slice(parent.label.length) || node.label;
   }
 
+  // 否则只有父节点确实就是这个 URL 的宿主时才简写,不然会丢掉辨识信息
+  // (比如服务因为缺子域名资产行而直接挂在根域名下,那就得显示完整 URL)。
   if (hostOf(node.label) !== hostOf(parent.label)) return node.label;
 
   const url = parseAssetURL(node.label);
@@ -93,6 +103,7 @@ export function buildAssetTree(nodes: FindingAssetNode[]): TreeNode[] {
     const current = byKey.get(node.key);
     if (!current) continue;
     const parent = node.parent ? byKey.get(node.parent) : undefined;
+    // 父节点缺失(被截断层级丢掉)时上提为顶层,不让子树整个消失。
     if (parent) {
       parent.children.push(current);
       current.display = shortLabel(node, parent);
@@ -108,7 +119,8 @@ export function buildAssetTree(nodes: FindingAssetNode[]): TreeNode[] {
   return roots;
 }
 
-// (display), label 。
+// assetPathOf 返回从顶层到该节点的路径,用于右侧面包屑。每一级同样只显示相对
+// 上一级的增量(display),完整值留在 label 里。
 export function assetPathOf(nodes: FindingAssetNode[], key: string | null): (FindingAssetNode & { display: string })[] {
   if (!key) return [];
   const byKey = new Map(nodes.map((n) => [n.key, n]));
@@ -123,6 +135,8 @@ export function assetPathOf(nodes: FindingAssetNode[], key: string | null): (Fin
   return path.map((node, index) => ({ ...node, display: shortLabel(node, path[index - 1]) }));
 }
 
+// filterTree 按关键词过滤:命中的节点保留,并保留其整条祖先链(祖先自身可以不命中)。
+// 命中节点的子孙一并保留,便于继续下钻。
 function filterTree(nodes: TreeNode[], keyword: string): TreeNode[] {
   const kw = keyword.trim().toLowerCase();
   if (!kw) return nodes;
@@ -136,7 +150,7 @@ function filterTree(nodes: TreeNode[], keyword: string): TreeNode[] {
   return nodes.map(walk).filter((n): n is TreeNode => n !== null);
 }
 
-// collectKeys () key,「」。
+// collectKeys 收集一棵(子)树里的全部 key,用于「展开全部匹配项」。
 function collectKeys(nodes: TreeNode[], out: Set<string> = new Set()): Set<string> {
   for (const node of nodes) {
     out.add(node.key);
@@ -152,9 +166,9 @@ interface AssetTreeProps {
   loading?: boolean;
   truncated?: boolean;
   droppedKinds?: string[];
-  /** ,「」。 */
+  /** 未选中任何资产时右侧展示的发现总数,用于「全部资产」那一行。 */
   findingTotal: number;
-  /** ,。 */
+  /** 资产视图不轮询,树的计数靠这个按钮或页面内的增删改来刷新。 */
   onRefresh?: () => void;
 }
 
@@ -172,11 +186,13 @@ export function AssetTree({
   const kindLabel = (kind: string) => (t.has(`assetTree.kind.${kind}`) ? t(`assetTree.kind.${kind}`) : kind);
   const [keyword, setKeyword] = React.useState("");
   const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set());
+  // 记住用户手动折叠过的节点,免得「默认展开顶层」在每次刷新后又把它们撑开。
   const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
 
   const roots = React.useMemo(() => buildAssetTree(nodes), [nodes]);
   const visible = React.useMemo(() => filterTree(roots, keyword), [roots, keyword]);
 
+  // 搜索时把匹配到的分支全部展开,否则命中项藏在折叠节点里等于没搜。
   const searching = keyword.trim() !== "";
   const searchKeys = React.useMemo(() => (searching ? collectKeys(visible) : null), [searching, visible]);
 
@@ -184,6 +200,7 @@ export function AssetTree({
     (node: TreeNode) => {
       if (searchKeys) return searchKeys.has(node.key);
       if (expanded.has(node.key)) return true;
+      // 顶层默认展开一层:再深的层级要用户自己点开,免得一次铺开上千行。
       return node.depth === 0 && !collapsed.has(node.key);
     },
     [collapsed, expanded, searchKeys],

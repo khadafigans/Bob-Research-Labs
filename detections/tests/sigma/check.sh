@@ -47,7 +47,7 @@ echo "== 3/4  each atomic indicator survives into the compiled query =="
 # robust across splunk-backend releases. These strings come straight from the
 # rule bodies, which are grounded in this repository's source. The last one is
 # the recording-proxy CA filename, grounded in traffic/traffic.go.
-for ind in 'artex-enrich/1.0' 'artex-selfupdate' '【ARTEX ·】' 'mitmproxy-ca-cert.pem'; do
+for ind in 'artex-enrich/1.0' 'artex-selfupdate' '【ARTEX 平台管控·非目标防御】' 'mitmproxy-ca-cert.pem'; do
   if printf '%s' "$tree_out" | grep -qF "$ind"; then
     pass "indicator present: $ind"
   else

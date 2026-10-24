@@ -20,7 +20,8 @@ import { Progress } from "@/components/ui/progress";
 import { api, sseUrl } from "@/lib/api";
 import type { UpdateCheck, UpdateProgress } from "@/lib/types";
 
-/** 。（ →  → ），
+/** 等待新版本上线的最长时间。一次升级要经过三次进程启动（暂存 → 换装 → 新版），
+ *  每次都是秒级，三分钟足够覆盖慢磁盘和 Docker 容器重建。 */
 const RESTART_TIMEOUT_MS = 180_000;
 
 function humanSize(n?: number): string {
@@ -45,10 +46,12 @@ export function UpdateCard() {
   const [info, setInfo] = React.useState<UpdateCheck | null>(null);
   const [checking, setChecking] = React.useState(true);
   const [progress, setProgress] = React.useState<UpdateProgress | null>(null);
-  //  progress ：，SSE ， /api/health。
+  // 与 progress 分开：暂存完成后进程就没了，SSE 会断，此时要切到轮询 /api/health。
   const [restarting, setRestarting] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
+  // quiet 同时决定要不要绕过后端缓存：进页面时的自动检查用缓存（顶栏刚查过），
+  // 用户手动点「检查更新」则强制回源，否则刚发布的版本要等缓存过期才看得到。
   const check = React.useCallback(
     (quiet = false) => {
       setChecking(true);
@@ -74,7 +77,10 @@ export function UpdateCard() {
     check(true);
   }, [check]);
 
+  // 轮询 /api/health 直到版本号变化。
   //
+  // 判据必须是"版本变了"而不是"能连上了"：换装过程中旧版本会短暂地重新起来一次
+  // （那一次只负责把 artex.new 换上去然后立刻退出），只看连通性会误判成功。
   const waitForNewVersion = React.useCallback(
     async (fromVersion: string) => {
       setRestarting(true);
@@ -93,6 +99,7 @@ export function UpdateCard() {
             }
           }
         } catch {
+          // 重启窗口内连不上是预期的，继续轮询。
         }
       }
       setRestarting(false);
@@ -101,6 +108,7 @@ export function UpdateCard() {
     [t],
   );
 
+  // 订阅更新进度。SSE 不走 Next 的 /api 重写（那层会缓冲，事件推不出来）。
   const openStream = React.useCallback(
     (fromVersion: string) => {
       const es = new EventSource(sseUrl("/api/update/stream"));
@@ -124,6 +132,8 @@ export function UpdateCard() {
         }
       };
       es.onerror = () => {
+        // 进程退出时 SSE 必然断开。如果已经进入等待重启，这属于正常现象，
+        // 交给 /api/health 轮询继续判定即可。
         es.close();
       };
       return es;
@@ -171,11 +181,13 @@ export function UpdateCard() {
 
   const phase = progress?.phase;
   const showProgress = busy || restarting;
-  // （ Content-Length ）。//
+  // 只有下载阶段拿得到真实百分比（按 Content-Length 算）。校验/解压/等待重启都是
+  // 时长不可知的阶段，进度条填满并加个脉冲动画表示"在忙但说不准还要多久"。
   const downloading = !restarting && phase === "downloading";
   const pct = downloading ? Math.max(progress?.percent ?? 0, 0) : 100;
 
   return (
+    // 设置页是多列瀑布流布局，卡片自己负责行间距并禁止跨列断开（见 page.tsx 的注释）。
     <Card className="mb-4 break-inside-avoid md:mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">

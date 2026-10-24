@@ -19,7 +19,7 @@ func decodeErrorField(t *testing.T, body []byte) string {
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatalf(" JSON  : %v ( %s)", err, body)
+		t.Fatalf("응답 JSON 파싱 실패: %v (본문 %s)", err, body)
 	}
 	return resp.Error
 }
@@ -51,13 +51,13 @@ func TestTaskCategoryResponsesLocalized(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/task-categories", strings.NewReader(body))
 		rec := httptest.NewRecorder()
 		if _, ok := decodeTaskCategoryRequest(rec, req); ok {
-			t.Fatalf("%s:     (status=%d)", name, rec.Code)
+			t.Fatalf("%s: 검증이 통과해서는 안 됩니다 (status=%d)", name, rec.Code)
 		}
 		return decodeErrorField(t, rec.Body.Bytes())
 	}
 	assertKoreanError(t, "name-empty", decodeCase("name-empty", `{"name":"   "}`))
 	assertKoreanError(t, "name-too-long",
-		decodeCase("name-too-long", `{"name":"`+strings.Repeat("", db.MaxTaskCategoryNameRunes+1)+`"}`))
+		decodeCase("name-too-long", `{"name":"`+strings.Repeat("가", db.MaxTaskCategoryNameRunes+1)+`"}`))
 	// The body exceeds maxTaskCategoryRequestBytes, so MaxBytesReader errors mid-decode.
 	assertKoreanError(t, "too-large",
 		decodeCase("too-large", `{"name":"`+strings.Repeat("a", maxTaskCategoryRequestBytes+1)+`"}`))
@@ -65,7 +65,7 @@ func TestTaskCategoryResponsesLocalized(t *testing.T) {
 	// parseCategoryIDField — a zero/negative category_id is rejected.
 	rec := httptest.NewRecorder()
 	if _, ok := parseCategoryIDField(rec, json.RawMessage("0")); ok {
-		t.Fatal("invalid id    ")
+		t.Fatal("invalid id 가 통과해서는 안 됩니다")
 	}
 	assertKoreanError(t, "invalid-id", decodeErrorField(t, rec.Body.Bytes()))
 

@@ -27,15 +27,17 @@ func hasHan(s string) bool {
 	return false
 }
 
-// assertKorean fails if s lacks Hangul or still carries Han ideographs. Reverting
-// any localized message back to Chinese trips hasHan, so the test is not vacuous.
+// assertKorean (legacy name) asserts English UI copy: no Hangul, no Han.
 func assertKorean(t *testing.T, label, s string) {
 	t.Helper()
-	if !hasHangul(s) {
-		t.Errorf("%s:  : %q", label, s)
+	if s == "" {
+		t.Errorf("%s: empty string", label)
+	}
+	if hasHangul(s) {
+		t.Errorf("%s: unexpected Hangul remaining: %q", label, s)
 	}
 	if hasHan(s) {
-		t.Errorf("%s:   : %q", label, s)
+		t.Errorf("%s: unexpected Han remaining: %q", label, s)
 	}
 }
 
@@ -59,7 +61,7 @@ func TestInterceptMessagesLocalized(t *testing.T) {
 }
 
 // TestJudgeActionLabelLocalized checks the three judge verdict labels are Korean
-// ( /  /  , per the glossary) and that an unknown action still
+// (허용 / 차단 / 확인 요청, per the glossary) and that an unknown action still
 // passes through untranslated.
 func TestJudgeActionLabelLocalized(t *testing.T) {
 	for _, action := range []string{"allow", "deny", "ask"} {
@@ -87,14 +89,14 @@ func TestDefaultMessageLocalized(t *testing.T) {
 
 // TestToolApprovalSummaryLocalized checks the activity summary is Korean and stays
 // parseable by transcript.tsx, which extracts the pending id via /\(#(\d+)\)/ and
-// the tool name via /\s+(\S+)\s+/.
+// the tool name via /도구\s+(\S+)\s+승인/.
 func TestToolApprovalSummaryLocalized(t *testing.T) {
 	s := fmt.Sprintf(msgToolApprovalRequestFmt, "Bash", 42)
 	assertKorean(t, "msgToolApprovalRequestFmt", s)
 	if !strings.Contains(s, "(#42)") {
 		t.Errorf("summary lost the (#N) marker (transcript.tsx pending_id regex): %q", s)
 	}
-	if !strings.Contains(s, " Bash ") {
-		t.Errorf("summary lost the ' X ' shape (transcript.tsx toolName regex): %q", s)
+	if !strings.Contains(s, "도구 Bash 승인") {
+		t.Errorf("summary lost the '도구 X 승인' shape (transcript.tsx toolName regex): %q", s)
 	}
 }

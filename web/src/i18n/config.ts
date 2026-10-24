@@ -1,5 +1,5 @@
-// Supported locales and default. English is the primary language for Bob Research Labs.
-export const LOCALES = ["en", "ko", "zh"] as const;
+// Supported locales and default. English is the only UI language for Bob Research Labs.
+export const LOCALES = ["en"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 

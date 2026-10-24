@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-// hanFreeItems  CJK   (ASCII ··) .
+// hanFreeItems 는 CJK 한자가 없는 항목(ASCII 제목·유형·요약)만 만든다.
+// 라벨이 중국어로 되돌아가면 렌더 결과 전체에 한자가 생기므로, 데이터가
+// 한자 0 일 때만 "출력 전체에 한자 0" 단언이 라벨 회귀를 정확히 잡아낸다.
 func hanFreeItems(n int) []Item {
 	items := make([]Item, 0, n)
 	for i := 0; i < n; i++ {
@@ -21,59 +23,62 @@ func hanFreeItems(n int) []Item {
 	return items
 }
 
-// TestMarkdownTitleLocalized  markdown  (dingtalk·wecom) 
-//  feishu·html·telegram·webhook    markdownTitle  
+// TestMarkdownTitleLocalized 는 markdown 계열 채널(dingtalk·wecom)과 제목을
+// 공유하는 feishu·html·telegram·webhook 이 함께 쓰는 markdownTitle 이 한국어인지
+// 검사한다. 하나라도 중국어로 되돌아가면 이 다섯 채널의 제목이 전부 혼재된다.
 func TestMarkdownTitleLocalized(t *testing.T) {
-	// (): "Vulnerability digest ·  N"
+	// 다건(汇总): "Vulnerability digest · 총 N건"
 	got := markdownTitle(Message{Batch: true, Items: hanFreeItems(3)})
 	assertKorean(t, "markdownTitle(batch)", got)
 	if !strings.Contains(got, "Vulnerability digest") || !strings.Contains(got, "3 total") {
-		t.Errorf("  'Vulnerability digest · 3 total'  ,   %q", got)
+		t.Errorf("다건 제목이 'Vulnerability digest · 3 total' 형태여야 합니다, 받은 값 %q", got)
 	}
-	//  : "Vulnerability alert"
+	// 항목 없음: "Vulnerability alert"
 	empty := markdownTitle(Message{})
 	assertKorean(t, "markdownTitle(empty)", empty)
 	if empty != "Vulnerability alert" {
-		t.Errorf("   'Vulnerability alert'  ,   %q", empty)
+		t.Errorf("빈 메시지 제목은 'Vulnerability alert' 이어야 합니다, 받은 값 %q", empty)
 	}
 }
 
-// TestMarkdownBatchIntroLocalized   (·· )
+// TestMarkdownBatchIntroLocalized 는 다이제스트 머리말(시간창·건수·초과 안내)이
+// 한국어인지 검사한다. 항목 데이터가 한자 0 이므로 출력에 한자가 보이면 머리말
+// 문구가 중국어로 회귀한 것이다.
 func TestMarkdownBatchIntroLocalized(t *testing.T) {
 	items := hanFreeItems(3)
 
-	//  : " N new finding(s) N"
+	// 시간창 있음: "최근 N분간 new finding(s) N건"
 	win := markdownBatchIntro(Message{Batch: true, WindowMinutes: 30}, items, 3)
 	if hasHan(win) {
-		t.Errorf("    : %q", win)
+		t.Errorf("시간창 머리말에 중국어 한자가 남았습니다: %q", win)
 	}
 	if !strings.Contains(win, "last 30 min") || !strings.Contains(win, "3 new finding(s)") {
-		t.Errorf("  '3 new finding(s) in last 30 min'  ,   %q", win)
+		t.Errorf("시간창 머리말이 '3 new finding(s) in last 30 min' 형태여야 합니다, 받은 값 %q", win)
 	}
 
-	//  : "new finding(s) N"(  )
+	// 시간창 없음: "new finding(s) N건"(분간 표기 없음)
 	noWin := markdownBatchIntro(Message{Batch: true}, items, 3)
 	if hasHan(noWin) {
-		t.Errorf("   : %q", noWin)
+		t.Errorf("머리말에 중국어 한자가 남았습니다: %q", noWin)
 	}
-	if !strings.Contains(noWin, "3 new finding(s)") || strings.Contains(noWin, "") {
-		t.Errorf("   '3 new finding(s)'(  ) ,   %q", noWin)
+	if !strings.Contains(noWin, "3 new finding(s)") || strings.Contains(noWin, "분간") {
+		t.Errorf("시간창 없는 머리말은 '3 new finding(s)'(분간 표기 없음)이어야 합니다, 받은 값 %q", noWin)
 	}
 
-	//   : "(   N …  N next message …)"
+	// 일부만 담겼을 때: "(이 메시지에는 앞 N건만 … 나머지 N건은 next message에서 …)"
 	trunc := markdownBatchIntro(Message{Batch: true, WindowMinutes: 30}, items, 5)
 	if hasHan(trunc) {
-		t.Errorf("    : %q", trunc)
+		t.Errorf("초과 안내에 중국어 한자가 남았습니다: %q", trunc)
 	}
 	for _, want := range []string{"showing first 3", "remaining 2", "follow"} {
 		if !strings.Contains(trunc, want) {
-			t.Errorf("  %q   ,   %q", want, trunc)
+			t.Errorf("초과 안내에 %q 가 있어야 합니다, 받은 값 %q", want, trunc)
 		}
 	}
 }
 
-// TestWriteItemLabelsLocalized    (markdown 3  )
-//  (Status change···)    .
+// TestWriteItemLabelsLocalized 는 단건 상세 렌더(markdown 3채널 공유 경로)의
+// 필드 라벨(Status change·유형·자산·개요)과 상세 링크가 한국어인지 검사한다.
 func TestWriteItemLabelsLocalized(t *testing.T) {
 	it := Item{
 		Name:       "login-flaw",
@@ -98,19 +103,20 @@ func TestWriteItemLabelsLocalized(t *testing.T) {
 		"[View details](https://platform.example/finding/1)",
 	} {
 		if !strings.Contains(got, want) {
-			t.Errorf("  %q   :\n%s", want, got)
+			t.Errorf("단건 렌더에 %q 가 있어야 합니다:\n%s", want, got)
 		}
 	}
 }
 
-// TestMarkdownBodyFooterLocalized       
+// TestMarkdownBodyFooterLocalized 는 다건 본문 끝의 플랫폼 입구 링크가
+// 한국어인지 검사한다(HomeURL 이 있을 때만 붙는다).
 func TestMarkdownBodyFooterLocalized(t *testing.T) {
 	m := Message{Batch: true, HomeURL: "https://platform.example", Items: hanFreeItems(2)}
 	body, kept := markdownBody(m, 0)
 	if kept != 2 {
-		t.Fatalf(" (0) 2   ,   %d", kept)
+		t.Fatalf("한도 없음(0)이면 2건 모두 담겨야 합니다, 받은 값 %d", kept)
 	}
 	if !strings.Contains(body, "[View all on platform](https://platform.example)") {
-		t.Errorf("  'View all on platform'   :\n%s", body)
+		t.Errorf("본문 끝에 'View all on platform' 링크가 있어야 합니다:\n%s", body)
 	}
 }

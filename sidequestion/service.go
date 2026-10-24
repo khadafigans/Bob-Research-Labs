@@ -11,14 +11,15 @@ import (
 // User-facing side-question outputs are Korean. The agent-brain prompts
 // (request.go:instruction, context.go:summaryInstruction) stay in their
 // benchmarked Chinese; only text and errors shown to the user are localized
+// (BRIEF 현지화 방침: 출력 언어만 한국어, 프롬프트 본문은 보존).
 var (
-	errSideModelInterrupted = errors.New("  .   .")
-	errSideNoAnswer         = errors.New("   .")
+	errSideModelInterrupted = errors.New("모델 응답이 중단되었습니다. 다시 질문해 주세요.")
+	errSideNoAnswer         = errors.New("모델이 답변을 반환하지 않았습니다.")
 )
 
 // msgSideToolUnavailable is the answer text shown when a side question tries to
 // trigger a tool call: side questions cannot run tools.
-const msgSideToolUnavailable = "      .      ."
+const msgSideToolUnavailable = "현재 곁질문에서는 도구 작업을 실행할 수 없습니다. 작업 요청은 메인 대화에서 보내 주세요."
 
 // SideQuestionService has no harness, tool executor, transcript writer or model
 // failover chain. Answer is one completion; Respond adds bounded preparation

@@ -15,13 +15,13 @@ func TestChatNowVarRenders(t *testing.T) {
 
 	PromptOverride = func(key string) (string, bool) {
 		if key == "tec_benchmark" {
-			return "：{{.Now}}", true
+			return "当前时间：{{.Now}}", true
 		}
 		return "", false
 	}
 
 	out := chatSystem("tec_benchmark", "/app/data", "/tmp/x")
-	if !strings.Contains(out, "：") {
+	if !strings.Contains(out, "当前时间：") {
 		t.Fatalf("custom prompt body missing, likely fell back to default: %q", out)
 	}
 	year := time.Now().Format("2006")
@@ -38,11 +38,11 @@ func TestChatDataDirVarRenders(t *testing.T) {
 	defer func() { PromptOverride = prev }()
 
 	PromptOverride = func(key string) (string, bool) {
-		return "：{{.DataDir}}", true
+		return "数据根目录：{{.DataDir}}", true
 	}
 
 	out := chatSystem("tec_benchmark", "/app/data", "/tmp/x")
-	if !strings.Contains(out, "：/app/data") {
+	if !strings.Contains(out, "数据根目录：/app/data") {
 		t.Fatalf("{{.DataDir}} did not render the data root: %q", out)
 	}
 }
@@ -54,11 +54,11 @@ func TestChatUnknownVarFallsBack(t *testing.T) {
 	defer func() { PromptOverride = prev }()
 
 	PromptOverride = func(key string) (string, bool) {
-		return "：{{.Bogus}}", true
+		return "引用了不存在的变量：{{.Bogus}}", true
 	}
 
 	out := chatSystem("whatever", "/app/data", "/tmp/x")
-	if strings.Contains(out, "") {
+	if strings.Contains(out, "引用了不存在的变量") {
 		t.Fatalf("broken template should have fallen back, got custom body: %q", out)
 	}
 	if !strings.Contains(out, DefaultAssistantPrompt) {

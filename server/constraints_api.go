@@ -9,19 +9,21 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// 「」 CRUD  + 。(allow/deny) agent 
-// set_constraints  task_constraints ; UI 。
-// ——【】 planner,()。 handler
-//  beginTaskOperation/decInflight,(/ CRUD )。
+// 总览「约束管理」的人工 CRUD 接口 + 注入范围开关的解析。操作约束(allow/deny)与 agent 侧的
+// set_constraints 工具写同一张 task_constraints 表;这里是人类在 UI 上直接增删改。约束仅是
+// 提示上下文——增删改后【不】通知 planner,下一轮规划自然读库生效(按产品决策)。每个变更 handler
+// 都走 beginTaskOperation/decInflight,避免与任务删除竞态(与目标/意图 CRUD 一致)。
 
-//  settings key,(GetBool  = true)。
+// 注入范围开关的 settings key,默认都开(GetBool 第二参数 = true)。
 const (
 	settingConstraintsInjectPlanner = "constraints_inject_planner"
 	settingConstraintsInjectWorker  = "constraints_inject_worker"
 )
 
-//  CRUD     (). writeErr   UI  .
-// goals_api.go  errGoalTaskDeleting*   , kind  intercept.go 
+// 约束 CRUD 핸들러의 사용자 노출 에러 응답(한국어). writeErr 로 그대로 UI 토스트에 노출된다.
+// 用語: 约束→제약(ko.json 의 약속/제약 표기와 정합), 任务→task. 추가/수정/삭제 문구는
+// goals_api.go 의 errGoalTaskDeleting* 와 같은 문형이고, kind 검증은 intercept.go 의
+// "값은 … 중 하나여야 합니다" 패턴을 따른다.
 const (
 	errConstraintTaskDeletingAdd    = "cannot add constraint while task is being deleted"
 	errConstraintTaskDeletingEdit   = "cannot edit constraint while task is being deleted"
@@ -30,8 +32,8 @@ const (
 	errConstraintKindInvalid        = "kind must be either allow or deny"
 )
 
-// constraintInjectPlanner / constraintInjectWorker  agent 
-// ()。 resolver  planner/worker, → 。
+// constraintInjectPlanner / constraintInjectWorker 报告是否把操作约束注入对应 agent 的
+// 系统提示(默认开)。作为 resolver 传给 planner/worker,每轮读 → 改开关即时生效。
 func (s *Server) constraintInjectPlanner() bool {
 	return s.m.pg.GetBool(settingConstraintsInjectPlanner, true)
 }
@@ -40,7 +42,7 @@ func (s *Server) constraintInjectWorker() bool {
 	return s.m.pg.GetBool(settingConstraintsInjectWorker, true)
 }
 
-// listConstraints (allow 、deny )。
+// listConstraints 返回本任务的全部操作约束(allow 在前、deny 在后)。
 func (s *Server) listConstraints(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -55,7 +57,7 @@ func (s *Server) listConstraints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"constraints": constraintDTOs(rows)})
 }
 
-// addConstraint (kind=allow|deny)。 planner。
+// addConstraint 人工新增一条操作约束(kind=allow|deny)。不通知 planner。
 func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -94,7 +96,7 @@ func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, ConstraintDTO{ID: strconv.FormatInt(id, 10), Kind: kind, Text: text, Origin: "human"})
 }
 
-// editConstraint (kind + text)。 planner。
+// editConstraint 人工修改一条约束(kind + text)。不通知 planner。
 func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -137,7 +139,7 @@ func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, ConstraintDTO{ID: strconv.FormatInt(cid, 10), Kind: kind, Text: text})
 }
 
-// deleteConstraint 。 planner。
+// deleteConstraint 人工删除一条约束。不通知 planner。
 func (s *Server) deleteConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {

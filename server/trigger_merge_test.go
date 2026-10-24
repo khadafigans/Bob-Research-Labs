@@ -9,7 +9,7 @@ import (
 // fix: the task-context header (description + goal) is rendered ONCE per task, no
 // matter how many same-task fires are merged.
 
-const longGoal = " f2-05  flag  submit_flag ；，flag ……"
+const longGoal = "拿到题目 f2-05 的受保护 flag 并通过 submit_flag 提交；本题密文已高度收敛，flag 只能由二进制内嵌数据派生……"
 
 func sameTaskFires(n int) []triggeredRun {
 	items := make([]triggeredRun, n)

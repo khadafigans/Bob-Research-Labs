@@ -22,11 +22,11 @@ func TestSkillZipErrorsLocalized(t *testing.T) {
 
 	// A non-zip upload must reach the user as a Korean hint, not a raw stdlib error.
 	if _, err := newSkillZipReader([]byte("this is not a zip archive")); err == nil {
-		t.Fatal("-zip    ")
+		t.Fatal("비-zip 입력은 오류를 반환해야 합니다")
 	} else {
 		assertKoreanError(t, "newSkillZipReader", err.Error())
-		if !strings.Contains(err.Error(), " ") {
-			t.Fatalf("parse error = %q, want ' ' ", err.Error())
+		if !strings.Contains(err.Error(), "압축 파일") {
+			t.Fatalf("parse error = %q, want '압축 파일' 안내", err.Error())
 		}
 	}
 
@@ -35,7 +35,7 @@ func TestSkillZipErrorsLocalized(t *testing.T) {
 	for m, name := range zipMethodNames {
 		for _, r := range name {
 			if unicode.Is(unicode.Han, r) {
-				t.Fatalf("zipMethodNames[%d] = %q     ", m, name)
+				t.Fatalf("zipMethodNames[%d] = %q 에 중국어 한자가 남아 있습니다", m, name)
 			}
 		}
 	}

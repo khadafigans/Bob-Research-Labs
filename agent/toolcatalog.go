@@ -19,10 +19,10 @@ import (
 // ToolSeed is a seedable snapshot of a built-in tool: Key = CoreTool.Name() (bound to handler, read-only in UI),
 // Desc/Schema come from the code tool definition, Agents are the default-bound agent keys.
 type ToolSeed struct {
-	Key    string         // = CoreTool.Name()，，
-	Desc   string         // （ UI ）
-	Schema map[string]any //  JSON-Schema（，description/default  UI ）
-	Agents []string       //  agent key（worker/planner/mainagent）
+	Key    string         // = CoreTool.Name()，主键，不可改
+	Desc   string         // 顶层描述（可在 UI 覆盖）
+	Schema map[string]any // 参数 JSON-Schema（结构只读，description/default 可在 UI 改）
+	Agents []string       // 默认绑定的 agent key（worker/planner/mainagent）
 }
 
 // builtinToolsByAgent constructs each executor agent's domain toolset using a "read-only shell"

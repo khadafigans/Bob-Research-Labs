@@ -16,7 +16,7 @@ type LLMProfile struct {
 	Name          string  `json:"name"`
 	Format        string  `json:"format"`
 	BaseURL       string  `json:"base_url,omitempty"`
-	Proxy         string  `json:"proxy,omitempty"` // LLM (http/https/socks5);=
+	Proxy         string  `json:"proxy,omitempty"` // LLM 出站代理(http/https/socks5);空=用环境变量
 	Model         string  `json:"model"`
 	APIKey        string  `json:"-"` // never serialized to UI
 	APIKeyHint    string  `json:"api_key_hint,omitempty"`
@@ -25,11 +25,11 @@ type LLMProfile struct {
 	// ContextWindowK is the model's context window in K tokens, used to size
 	// compaction thresholds. 0 = use a 200K default; capped at 1000 (1M).
 	ContextWindowK int `json:"context_window_k"`
-	// ThinkingType 「」(thinking.type):"" = ();
-	// "disabled" = ; "enabled" = .  ReasoningEffort .
+	// ThinkingType 独立控制思考「开关」(thinking.type):"" = 不发送(默认);
+	// "disabled" = 显式关闭; "enabled" = 开启. 与 ReasoningEffort 解耦.
 	ThinkingType string `json:"thinking_type"`
-	// ReasoningEffort 「」:"" = ();
-	// "low"/"medium"/"high"/"xhigh"/"max" = .  agent.Config.NewProvider.
+	// ReasoningEffort 独立控制思考「强度」:"" = 不发送(默认);
+	// "low"/"medium"/"high"/"xhigh"/"max" = 对应强度. 见 agent.Config.NewProvider.
 	ReasoningEffort string `json:"reasoning_effort"`
 	IsDefault       bool   `json:"is_default"`
 	// Priority orders the failover chain: higher goes first. The ACTIVE profile
@@ -68,7 +68,7 @@ type LLMProfile struct {
 }
 
 // RetryOverride is one profile's optional override of the three retry layers
-// that are per-endpoint: (connect) / (empty) /  provider 
+// that are per-endpoint: 建连(connect) / 空响应(empty) / 同 provider 安全窗口
 // (stream). Each rule's zero value means "inherit the global policy"; see
 // RetryRule for the -1 / 0 / >0 semantics.
 type RetryOverride struct {
@@ -445,19 +445,20 @@ type Agent struct {
 	Role             string `json:"role"`
 	Builtin          bool   `json:"builtin"`
 	Enabled          bool   `json:"enabled"`
-	LLMProfileID     *int64 `json:"llm_profile_id"`    //  LLM ;nil=/ pin,
-	MaxTurns         int    `json:"max_turns"`         // ;0=
-	RunSecs          int    `json:"run_seconds"`       // worker ();0=
-	WebSearch        bool   `json:"web_search"`        // ()
-	InteractiveShell bool   `json:"interactive_shell"` //  shell( PTY )
-	WrapupPrompt     string `json:"wrapup_prompt"`     // (/ settlement );=
-	WrapupMaxTurns   int    `json:"wrapup_max_turns"`  // ;0=( agent)
-	// ( per-run ; worker/planner );/0=。
+	LLMProfileID     *int64 `json:"llm_profile_id"`    // 绑定的 LLM 配置;nil=跟随任务/会话 pin,再回退全局激活
+	MaxTurns         int    `json:"max_turns"`         // 单次运行最大轮次;0=不限制
+	RunSecs          int    `json:"run_seconds"`       // worker 单次运行墙钟上限(秒);0=不限制
+	WebSearch        bool   `json:"web_search"`        // 是否启用网络搜索(受系统全局开关门控)
+	InteractiveShell bool   `json:"interactive_shell"` // 是否启用交互式 shell(持久 PTY 会话工具族)
+	WrapupPrompt     string `json:"wrapup_prompt"`     // 收尾提示词(超时/步数耗尽时的 settlement 提示);空=用代码内置默认
+	WrapupMaxTurns   int    `json:"wrapup_max_turns"`  // 收尾阶段自身的轮数预算;0=用代码内置默认(按 agent)
+	// 任务级超时收尾词(与 per-run 两套;仅 worker/planner 用);空/0=用代码内置默认。
 	TaskTimeoutWrapupPrompt   string `json:"task_timeout_wrapup_prompt"`
 	TaskTimeoutWrapupMaxTurns int    `json:"task_timeout_wrapup_max_turns"`
-	// TriggerRunMode  serial|parallel —  / 
-	// TriggerMergeMode by_task|all|none —  serial : /  / 
-	// TriggerMaxParallel —  parallel  agent ;0=
+	// P3 触发后处理策略(仅自定义 agent 有意义):
+	// TriggerRunMode  serial|parallel — 串行排队 / 每次触发各自并发一个会话
+	// TriggerMergeMode by_task|all|none — 仅 serial 用:同任务合并 / 全部合并 / 不合并
+	// TriggerMaxParallel — 仅 parallel 用的每 agent 并发上限;0=不限
 	TriggerRunMode     string `json:"trigger_run_mode"`
 	TriggerMergeMode   string `json:"trigger_merge_mode"`
 	TriggerMaxParallel int    `json:"trigger_max_parallel"`
@@ -467,7 +468,7 @@ const agentCols = `id,key,name,COALESCE(description,''),role,builtin,enabled,COA
 
 func scanAgent(sc interface{ Scan(...any) error }) (*Agent, error) {
 	var a Agent
-	var prof sql.NullInt64 // llm_profile_id : NULL
+	var prof sql.NullInt64 // llm_profile_id 可空:未绑定时为 NULL
 	err := sc.Scan(&a.ID, &a.Key, &a.Name, &a.Description, &a.Role, &a.Builtin, &a.Enabled, &a.MaxTurns, &a.RunSecs, &a.WebSearch, &a.InteractiveShell, &a.WrapupPrompt, &a.WrapupMaxTurns, &a.TaskTimeoutWrapupPrompt, &a.TaskTimeoutWrapupMaxTurns, &a.TriggerRunMode, &a.TriggerMergeMode, &a.TriggerMaxParallel, &prof)
 	if err == nil && prof.Valid {
 		v := prof.Int64
@@ -507,7 +508,7 @@ func (d *DB) GetAgentByKey(key string) (*Agent, error) {
 // AgentBindingCounts returns per-agent binding counts in a few grouped queries
 // (NO N+1): visible MCP servers and skills keyed by agent id, and bound tools
 // keyed by agent key (tools.agents is a JSONB array of agent keys). Missing keys
-// mean zero. Used to show "MCP N · Skill N ·  N" on the agent cards.
+// mean zero. Used to show "MCP N · Skill N · 工具 N" on the agent cards.
 func (d *DB) AgentBindingCounts() (mcp map[int64]int, skill map[int64]int, tools map[string]int, err error) {
 	mcp, skill, tools = map[int64]int{}, map[int64]int{}, map[string]int{}
 	byID := func(q string, into map[int64]int) error {
@@ -642,7 +643,7 @@ func (d *DB) SetAgentWebSearch(key string, on bool) error {
 }
 
 // SetAgentInteractiveShell toggles whether an agent gets the interactive shell
-// ( PTY ) tool family + Bash ( docs/shell.md §14.2).
+// (持久 PTY 会话) tool family + Bash 提示词联动(见 docs/交互式shell设计.md §14.2).
 func (d *DB) SetAgentInteractiveShell(key string, on bool) error {
 	_, err := d.Exec(`UPDATE agents SET interactive_shell=$1 WHERE key=$2`, on, key)
 	return err
@@ -679,8 +680,9 @@ func (d *DB) SetAgentRunSeconds(key string, runSecs int) error {
 	return err
 }
 
-// SetAgentTriggerBehavior stores an agent's P3 trigger post-processing:
-// runMode(serial|parallel) / mergeMode(by_task|all|none) / maxParallel(parallel ,0=)。
+// SetAgentTriggerBehavior stores an agent's P3 trigger post-processing策略:
+// runMode(serial|parallel) / mergeMode(by_task|all|none) / maxParallel(parallel 用,0=不限)。
+// 枚举做白名单校验,非法值回落默认,避免脏数据把调度 pump 带偏。
 func (d *DB) SetAgentTriggerBehavior(key, runMode, mergeMode string, maxParallel int) error {
 	switch runMode {
 	case "serial", "parallel":
@@ -746,14 +748,14 @@ func (d *DB) SeedPromptIfEmpty(agentID int64, tmpl string) error {
 	if cur.Valid {
 		return nil // already seeded or user-edited → leave it
 	}
-	_, err := d.SavePrompt(agentID, tmpl, "", "system")
+	_, err := d.SavePrompt(agentID, tmpl, "内置默认", "system")
 	return err
 }
 
 // ResetPromptToDefault appends the code-default template as a new version and
-// points current at it — the explicit "" action.
+// points current at it — the explicit "恢复为内置默认" action.
 func (d *DB) ResetPromptToDefault(agentID int64, tmpl string) (int, error) {
-	return d.SavePrompt(agentID, tmpl, "", "system")
+	return d.SavePrompt(agentID, tmpl, "恢复为内置默认", "system")
 }
 
 // SavePrompt appends a new version and points current_prompt_id at it.

@@ -40,7 +40,8 @@ func printBanner(addr string) {
 	fmt.Println("  We are coming to root your server")
 	fmt.Printf("  Version %s  ·  %s/%s  ·  %s  ·  Listening on %s\n",
 		version, runtime.GOOS, runtime.GOARCH, runtime.Version(), addr)
-	fmt.Println("  Powered by Bob Research Labs\n")
+	fmt.Println("  Powered by Bob Research Labs")
+	fmt.Println()
 }
 
 // main only maps run's result onto the process exit code. The exit code is part

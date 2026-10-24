@@ -15,10 +15,11 @@ import (
 
 const maxChatMentions = 10
 
-// User-facing @() error messages surfaced through the HTTP API, localized
-// to Korean (BRIEF  ). : →(UI mentionTextarea 
-// ).    :   (chatMentionPattern·
-// chatMentionKinds)    · (composeChatMentionMessage
+// User-facing @멘션(인용) error messages surfaced through the HTTP API, localized
+// to Korean (BRIEF 현지화 방침). 用語: 引用→인용(UI mentionTextarea 네임스페이스
+// 정합). 보존 대상은 여기 없다: 와이어 토큰 라벨(chatMentionPattern·
+// chatMentionKinds)과 에이전트 입력 스냅샷 헤더·절단 표시(composeChatMentionMessage
+// 안)는 표시 문구가 아니라 두뇌 입력 형식이라 원문 그대로 둔다.
 const (
 	errChatMentionBadID       = "invalid reference ID. please re-select"
 	errChatMentionTooMany     = "a single message can reference at most 10 records"
@@ -28,9 +29,10 @@ const (
 	errChatMentionNotFoundFmt = "referenced %s #%d record does not exist or type mismatch. remove and re-select"
 )
 
-// chatMentionKindLabel:        .
-// UI `mentionTextarea.kind.*`    .  (chatMentionPattern·
-// chatMentionKinds)  (ref.Name, composeChatMentionMessage )
+// chatMentionKindLabel: 사용자 노출 오류에서만 쓰는 표시 전용 한국어 라벨.
+// UI `mentionTextarea.kind.*` 와 같은 용어를 쓴다. 와이어 토큰(chatMentionPattern·
+// chatMentionKinds)과 에이전트 입력(ref.Name, composeChatMentionMessage 안)은
+// 중국어 라벨을 그대로 유지한다 — 프론트 멘션 칩 표시 i18n(F30)과 분리된 별건.
 var chatMentionKindLabel = map[string]string{
 	"finding": "finding", "asset": "asset", "company": "company", "endpoint": "endpoint",
 	"ip": "IP", "app": "app", "root_domain": "domain", "subdomain": "subdomain", "service": "service",
@@ -39,14 +41,14 @@ var chatMentionKindLabel = map[string]string{
 // The visible token survives drafts, uploads, retries and conversation history.
 // Labels are only for display: the server trusts only the type and numeric ID.
 // Support both Chinese and English label variants in mention tokens.
-var chatMentionPattern = regexp.MustCompile(`@\[(finding|asset|company|endpoint|IP|app|domain|subdomain|service||||||||)#([0-9]+)(?: [^\]\r\n]*)?\]`)
+var chatMentionPattern = regexp.MustCompile(`@\[(finding|asset|company|endpoint|IP|app|domain|subdomain|service|漏洞|资产|企业|接口|应用|域名|子域名|服务)#([0-9]+)(?: [^\]\r\n]*)?\]`)
 var chatMentionKinds = map[string]string{
 	// English labels
 	"finding": "finding", "asset": "asset", "company": "company", "endpoint": "endpoint",
 	"IP": "ip", "app": "app", "domain": "root_domain", "subdomain": "subdomain", "service": "service",
 	// Legacy Chinese labels (backward compat)
-	"": "finding", "": "asset", "": "company", "": "endpoint",
-	"": "app", "": "root_domain", "": "subdomain", "": "service",
+	"漏洞": "finding", "资产": "asset", "企业": "company", "接口": "endpoint",
+	"应用": "app", "域名": "root_domain", "子域名": "subdomain", "服务": "service",
 }
 
 type chatMentionRef struct {
@@ -137,6 +139,7 @@ func composeChatMentionMessage(pg *db.DB, message string) (string, error) {
 			return "", err
 		}
 		if data == nil {
+			// 와이어 라벨(ref.Name, 중국어)은 보존하되, 표시는 한국어 라벨로.
 			label := chatMentionKindLabel[ref.Kind]
 			if label == "" {
 				label = ref.Name

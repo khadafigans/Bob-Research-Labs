@@ -1,12 +1,12 @@
 # ARTEX detection rules (Suricata / network)
 
-English · [](README.ko.md)
+English · [한국어](README.ko.md)
 
-> :   [· (docs/defense-ko.md)](../../docs/defense-ko.md) 2·4
->       [Suricata](https://suricata.io)   .
-> ·  [`../sigma/`](../sigma/)(Sigma) .    
->      **· ** .   
-> **[README.ko.md](README.ko.md)**  .
+> 한국어: 이 디렉터리는 [방어·탐지 가이드(docs/defense-ko.md)](../../docs/defense-ko.md) 2·4절의
+> 네트워크 관측 지문을 실제로 배포 가능한 [Suricata](https://suricata.io) 규칙으로 옮긴 것입니다.
+> 로그·호스트 계층은 [`../sigma/`](../sigma/)(Sigma)가 담당합니다. 모든 규칙은 자신이 소유하거나
+> 서면 허가를 받은 시스템을 지키는 **방어·탐지 목적에만** 사용하십시오. 한국어 전체 문서는
+> **[README.ko.md](README.ko.md)** 를 보십시오.
 
 The network-layer companion to the [Sigma rules](../sigma/). These [Suricata](https://suricata.io)
 signatures cover the two ARTEX artifacts that are observable on the wire, and every indicator is grounded in a
