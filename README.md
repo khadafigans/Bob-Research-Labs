@@ -4,7 +4,7 @@
 
 An LLM multi-agent autonomous penetration-testing system (Go backend + Next.js frontend)
 
-English · [한국어](README.ko.md)
+English · [](README.ko.md)
 
 </div>
 
@@ -52,14 +52,14 @@ writer, and Finding retest fall back to their role defaults; render failures app
 ## Screenshots
 
 These captures show Bob Research Labs's English interface with the included fictional demo data.
-They do not represent scans of live targets. See the [Korean screenshots](README.ko.md#스크린샷)
-and [mobile view](screenshots/en/mobile.png).
+They do not represent scans of live targets. See the [Korean screenshots](README.ko.md#)
+and [mobile view](screenshots/mobile.png).
 
 | Dashboard | Tasks |
 | :---: | :---: |
-| ![English dashboard](screenshots/en/dashboard.png) | ![English task list](screenshots/en/tasks.png) |
+| ![English dashboard](screenshots/dashboard.png) | ![English task list](screenshots/tasks.png) |
 | Findings | Settings |
-| ![English findings](screenshots/en/findings.png) | ![English settings](screenshots/en/settings.png) |
+| ![English findings](screenshots/findings.png) | ![English settings](screenshots/settings.png) |
 
 Original Chinese screenshots remain in [the screenshots directory](screenshots), credited to
 [upstream ARTEX](https://github.com/Autumn-27/ARTEX/tree/160fe13c243be361eeac5408c40a96e824fa842c/screenshots).
@@ -634,7 +634,7 @@ ARTEX** project faithfully; it does not attribute those changes to Bob Research 
 
 ### Screenshots and localized assets
 
-The localized captures are in `screenshots/en/` and `screenshots/ko/`. They show the included demo
+The localized captures are in `screenshots/` and `screenshots/ko/`. They show the included demo
 fixtures on desktop and mobile. Original ARTEX screenshots elsewhere in `screenshots/` remain
 unchanged and credited to upstream.
 
